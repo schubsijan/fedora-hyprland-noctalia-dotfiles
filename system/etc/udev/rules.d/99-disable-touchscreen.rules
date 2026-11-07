@@ -1,0 +1,4 @@
+# Touchscreen + Stift (ELAN2514, 04f3:2ce2) für libinput ausblenden.
+# Gerätespezifisch: auf anderer Hardware greift die Regel einfach nicht.
+# Touchpad (ELAN074A, 04f3:31ab) bleibt unberührt.
+SUBSYSTEM=="input", ATTRS{id/vendor}=="04f3", ATTRS{id/product}=="2ce2", ENV{LIBINPUT_IGNORE_DEVICE}="1"

@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# pkg-remove – selbst installierte Pakete per fzf suchen und entfernen
+# (nach dem Vorbild von omarchy-pkg-remove)
+#
+#   pkg-remove [suchtext]
+#
+# Enter: entfernen · Tab: mehrere wählen · alt-p: Info ein/aus · alt-j/k: Info scrollen
+# Angezeigt werden:
+#   - vom User installierte RPM-Pakete (dnf --userinstalled), keine Abhängigkeiten
+#   - installierte Flatpak-Apps (system + user), keine Runtimes
+#   - über install/optional/<name>.sh installierte Programme (z.B. Zotero aus dem Tarball)
+# dnf-Pakete werden per "sudo dnf remove" entfernt, Flatpaks per "flatpak uninstall"
+# (bei system-Installation fragt polkit nach dem Passwort), Skript-Programme per
+# "install/optional/<name>.sh --remove".
+
+set -uo pipefail
+command -v fzf >/dev/null || { echo "fzf fehlt: sudo dnf install fzf" >&2; exit 1; }
+
+TAB=$'\t'
+GREY=$'\e[90m'
+CYAN=$'\e[36m'
+YELLOW=$'\e[33m'
+RESET=$'\e[0m'
+# Liegt im Repo unter home/bin/.local/bin und ist nach ~/.local/bin verlinkt: echten Pfad auflösen,
+# vier Ebenen hoch ist die Repo-Wurzel. export für die fzf-Vorschau
+export OPTIONAL_DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../../../.." && pwd)/install/optional"
+
+# Zeilenformat (Tab-getrennt):
+#   1: Name/App-ID   2: Quelle (farbig, nur Anzeige)   3: Beschreibung   4: Typ (versteckt)
+# Typ: dnf | flatpak-system | flatpak-user | script
+list_packages() {
+    dnf repoquery --userinstalled -q \
+        --queryformat "%{name}${TAB}%{summary}\n" 2>/dev/null |
+        sort -u -t "$TAB" -k1,1 |
+        while IFS="$TAB" read -r name summary; do
+            printf '%s\t%s\t%s\t%s\n' "$name" "${GREY}[dnf]${RESET}" "${GREY}${summary}${RESET}" "dnf"
+        done
+
+    if command -v flatpak >/dev/null; then
+        flatpak list --app --columns=application,name,installation 2>/dev/null |
+            sort -u -t "$TAB" -k1,1 |
+            while IFS="$TAB" read -r app name inst; do
+                printf '%s\t%s\t%s\t%s\n' "$app" "${CYAN}[flatpak]${RESET}" "${GREY}${name}${RESET}" "flatpak-${inst}"
+            done
+    fi
+
+    # Nur Skripte, die --status kennen: Andere würden beim Aufruf einfach installieren
+    local script info
+    for script in "$OPTIONAL_DIR"/*.sh; do
+        [ -f "$script" ] && grep -q -- '--status' "$script" || continue
+        info="$(bash "$script" --status 2>/dev/null)" || continue
+        printf '%s\t%s\t%s\t%s\n' "$(basename "$script" .sh)" "${YELLOW}[script]${RESET}" "${GREY}${info}${RESET}" "script"
+    done
+}
+
+selection=$(
+    list_packages |
+        fzf --ansi --multi --query "$*" \
+            --delimiter "$TAB" --with-nth 1..3 --nth 1,3 \
+            --prompt "remove> " \
+            --header "Enter: entfernen · Tab: mehrere wählen · Esc: abbrechen" \
+            --preview 'case {4} in
+                           dnf) dnf info -q --installed {1} 2>/dev/null ;;
+                           script) bash "$OPTIONAL_DIR"/{1}.sh --status ;;
+                           flatpak-user) flatpak info --user {1} 2>/dev/null ;;
+                           *) flatpak info --system {1} 2>/dev/null ;;
+                       esac' \
+            --preview-label 'alt-p: Info ein/aus · alt-j/k: scrollen' --preview-label-pos bottom \
+            --preview-window 'down:60%:wrap' \
+            --bind 'alt-p:toggle-preview' \
+            --bind 'alt-d:preview-half-page-down,alt-u:preview-half-page-up' \
+            --bind 'alt-k:preview-up,alt-j:preview-down' \
+            --color 'pointer:red,marker:red' |
+        cut -f1,4
+)
+
+[ -n "$selection" ] || exit 0
+
+# Auswahl nach Quelle aufteilen
+dnf_pkgs=()
+fp_system=()
+fp_user=()
+scripts=()
+while IFS="$TAB" read -r name type; do
+    case "$type" in
+        dnf) dnf_pkgs+=("$name") ;;
+        script) scripts+=("$name") ;;
+        flatpak-user) fp_user+=("$name") ;;
+        flatpak-*) fp_system+=("$name") ;;
+    esac
+done <<<"$selection"
+
+rc=0
+run() {
+    echo -e "\e[1m==> $*\e[0m"
+    "$@" || rc=$?
+}
+
+[ ${#dnf_pkgs[@]} -gt 0 ] && run sudo dnf remove "${dnf_pkgs[@]}"
+[ ${#fp_system[@]} -gt 0 ] && run flatpak uninstall --system "${fp_system[@]}"
+[ ${#fp_user[@]} -gt 0 ] && run flatpak uninstall --user "${fp_user[@]}"
+
+# Skript-Programme: rm statt Paketmanager, deshalb hier selbst nachfragen (wie dnf: Standard Ja)
+for name in "${scripts[@]}"; do
+    read -rp "$name entfernen? [J/n] " ans
+    [[ "$ans" =~ ^[nN]$ ]] || run bash "$OPTIONAL_DIR/$name.sh" --remove
+done
+
+# Nicht mehr benötigte Flatpak-Runtimes anbieten aufzuräumen
+if [ $((${#fp_system[@]} + ${#fp_user[@]})) -gt 0 ]; then
+    read -rp $'\nUngenutzte Flatpak-Runtimes entfernen? [J/n] ' ans
+    [[ "$ans" =~ ^[nN]$ ]] || run flatpak uninstall --unused
+fi
+
+# Aus dem Noctalia-Menü gestartet (PKG_WAIT=1): Fenster offen halten
+[ -n "${PKG_WAIT:-}" ] && read -rp $'\nEnter zum Schließen … ' _
+exit "$rc"

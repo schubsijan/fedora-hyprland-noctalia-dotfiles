@@ -1,0 +1,70 @@
+/* Noctalia-Template für ZenNotes: daraus entsteht ~/.config/zennotes/themes/noctalia/theme.css.
+ * Tokens sind RGB-Werte mit Leerzeichen, siehe ~/.config/zennotes/themes/soft-paper/theme.css.
+ * Für den Haupttext dient terminal_foreground, weil on_surface in manchen Paletten
+ * (z.B. Everforest) zum Lesen längerer Texte recht blass ist.
+ * Hell nutzt terminal_background, weil die Syntaxfarben dafür gedacht sind: Everforest hat als
+ * helles surface ein Graugrün, auf dem Rot und Blau kaum lesbar wären.
+ * Der Schatten ist fest, weil shadow in manchen Paletten ein heller Ton ist.
+ */
+
+:root {
+  color-scheme: light;
+  --z-bg: {{colors.terminal_background.light.red}} {{colors.terminal_background.light.green}} {{colors.terminal_background.light.blue}};
+  --z-bg-softer: {{colors.surface_container_low.light.red}} {{colors.surface_container_low.light.green}} {{colors.surface_container_low.light.blue}};
+  --z-bg-1: {{colors.surface_container.light.red}} {{colors.surface_container.light.green}} {{colors.surface_container.light.blue}};
+  --z-bg-2: {{colors.surface_container_high.light.red}} {{colors.surface_container_high.light.green}} {{colors.surface_container_high.light.blue}};
+  --z-bg-3: {{colors.surface_container_highest.light.red}} {{colors.surface_container_highest.light.green}} {{colors.surface_container_highest.light.blue}};
+  --z-bg-4: {{colors.outline_variant.light.red}} {{colors.outline_variant.light.green}} {{colors.outline_variant.light.blue}};
+  --z-fg: {{colors.terminal_foreground.light.red}} {{colors.terminal_foreground.light.green}} {{colors.terminal_foreground.light.blue}};
+  --z-fg-1: {{colors.terminal_foreground.light.red}} {{colors.terminal_foreground.light.green}} {{colors.terminal_foreground.light.blue}};
+  --z-fg-2: {{colors.on_surface_variant.light.red}} {{colors.on_surface_variant.light.green}} {{colors.on_surface_variant.light.blue}};
+  --z-grey-2: {{colors.on_surface_variant.light.red}} {{colors.on_surface_variant.light.green}} {{colors.on_surface_variant.light.blue}};
+  --z-grey-1: {{colors.outline.light.red}} {{colors.outline.light.green}} {{colors.outline.light.blue}};
+  --z-grey-0: {{colors.outline.light.red}} {{colors.outline.light.green}} {{colors.outline.light.blue}};
+  --z-grey-dim: {{colors.outline_variant.light.red}} {{colors.outline_variant.light.green}} {{colors.outline_variant.light.blue}};
+  --z-accent: {{colors.primary.light.red}} {{colors.primary.light.green}} {{colors.primary.light.blue}};
+  --z-accent-soft: {{colors.secondary.light.red}} {{colors.secondary.light.green}} {{colors.secondary.light.blue}};
+  --z-accent-muted: {{colors.tertiary.light.red}} {{colors.tertiary.light.green}} {{colors.tertiary.light.blue}};
+  --z-red: {{colors.terminal_normal_red.light.red}} {{colors.terminal_normal_red.light.green}} {{colors.terminal_normal_red.light.blue}};
+  --z-green: {{colors.terminal_normal_green.light.red}} {{colors.terminal_normal_green.light.green}} {{colors.terminal_normal_green.light.blue}};
+  --z-yellow: {{colors.terminal_normal_yellow.light.red}} {{colors.terminal_normal_yellow.light.green}} {{colors.terminal_normal_yellow.light.blue}};
+  --z-blue: {{colors.terminal_normal_blue.light.red}} {{colors.terminal_normal_blue.light.green}} {{colors.terminal_normal_blue.light.blue}};
+  --z-purple: {{colors.terminal_normal_magenta.light.red}} {{colors.terminal_normal_magenta.light.green}} {{colors.terminal_normal_magenta.light.blue}};
+  --z-aqua: {{colors.terminal_normal_cyan.light.red}} {{colors.terminal_normal_cyan.light.green}} {{colors.terminal_normal_cyan.light.blue}};
+  --z-shadow: 0 0 0;
+  --z-glass-a1: 0.62;
+  --z-glass-a2: 0.5;
+  --z-glass-a3: 0.35;
+  --z-glass-a4: 0.25;
+}
+
+:root[data-theme-mode="dark"] {
+  color-scheme: dark;
+  --z-bg: {{colors.surface.dark.red}} {{colors.surface.dark.green}} {{colors.surface.dark.blue}};
+  --z-bg-softer: {{colors.surface_container_low.dark.red}} {{colors.surface_container_low.dark.green}} {{colors.surface_container_low.dark.blue}};
+  --z-bg-1: {{colors.surface_container.dark.red}} {{colors.surface_container.dark.green}} {{colors.surface_container.dark.blue}};
+  --z-bg-2: {{colors.surface_container_high.dark.red}} {{colors.surface_container_high.dark.green}} {{colors.surface_container_high.dark.blue}};
+  --z-bg-3: {{colors.surface_container_highest.dark.red}} {{colors.surface_container_highest.dark.green}} {{colors.surface_container_highest.dark.blue}};
+  --z-bg-4: {{colors.outline_variant.dark.red}} {{colors.outline_variant.dark.green}} {{colors.outline_variant.dark.blue}};
+  --z-fg: {{colors.terminal_foreground.dark.red}} {{colors.terminal_foreground.dark.green}} {{colors.terminal_foreground.dark.blue}};
+  --z-fg-1: {{colors.terminal_foreground.dark.red}} {{colors.terminal_foreground.dark.green}} {{colors.terminal_foreground.dark.blue}};
+  --z-fg-2: {{colors.on_surface_variant.dark.red}} {{colors.on_surface_variant.dark.green}} {{colors.on_surface_variant.dark.blue}};
+  --z-grey-2: {{colors.on_surface_variant.dark.red}} {{colors.on_surface_variant.dark.green}} {{colors.on_surface_variant.dark.blue}};
+  --z-grey-1: {{colors.outline.dark.red}} {{colors.outline.dark.green}} {{colors.outline.dark.blue}};
+  --z-grey-0: {{colors.outline.dark.red}} {{colors.outline.dark.green}} {{colors.outline.dark.blue}};
+  --z-grey-dim: {{colors.outline_variant.dark.red}} {{colors.outline_variant.dark.green}} {{colors.outline_variant.dark.blue}};
+  --z-accent: {{colors.primary.dark.red}} {{colors.primary.dark.green}} {{colors.primary.dark.blue}};
+  --z-accent-soft: {{colors.secondary.dark.red}} {{colors.secondary.dark.green}} {{colors.secondary.dark.blue}};
+  --z-accent-muted: {{colors.tertiary.dark.red}} {{colors.tertiary.dark.green}} {{colors.tertiary.dark.blue}};
+  --z-red: {{colors.terminal_normal_red.dark.red}} {{colors.terminal_normal_red.dark.green}} {{colors.terminal_normal_red.dark.blue}};
+  --z-green: {{colors.terminal_normal_green.dark.red}} {{colors.terminal_normal_green.dark.green}} {{colors.terminal_normal_green.dark.blue}};
+  --z-yellow: {{colors.terminal_normal_yellow.dark.red}} {{colors.terminal_normal_yellow.dark.green}} {{colors.terminal_normal_yellow.dark.blue}};
+  --z-blue: {{colors.terminal_normal_blue.dark.red}} {{colors.terminal_normal_blue.dark.green}} {{colors.terminal_normal_blue.dark.blue}};
+  --z-purple: {{colors.terminal_normal_magenta.dark.red}} {{colors.terminal_normal_magenta.dark.green}} {{colors.terminal_normal_magenta.dark.blue}};
+  --z-aqua: {{colors.terminal_normal_cyan.dark.red}} {{colors.terminal_normal_cyan.dark.green}} {{colors.terminal_normal_cyan.dark.blue}};
+  --z-shadow: 0 0 0;
+  --z-glass-a1: 0.58;
+  --z-glass-a2: 0.46;
+  --z-glass-a3: 0.32;
+  --z-glass-a4: 0.22;
+}

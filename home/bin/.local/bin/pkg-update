@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# pkg-update – System und Pakete aktualisieren
+#
+#   pkg-update        mit Rückfragen (dnf/flatpak zeigen erst, was sich ändert)
+#   pkg-update -y     ohne Rückfragen
+#
+# 1. dnf      sudo dnf upgrade --refresh   (Fedora-Repos + aktivierte COPRs)
+# 2. Flatpak  flatpak update + ungenutzte Runtimes entfernen
+# 3. Firmware nur prüfen und anzeigen (fwupdmgr), nicht automatisch einspielen
+# 4. Hinweis, ob ein Neustart nötig ist (dnf needs-restarting)
+
+set -uo pipefail
+
+YES=()
+[ "${1:-}" = "-y" ] && YES=(-y)
+
+BOLD=$'\e[1m'
+GREEN=$'\e[32m'
+YELLOW=$'\e[33m'
+RED=$'\e[31m'
+RESET=$'\e[0m'
+
+step() { echo -e "\n${BOLD}==> $*${RESET}"; }
+failed=()
+
+# ── 1. dnf ──────────────────────────────────────────────────────────────────
+step "dnf: Systempakete aktualisieren"
+sudo dnf upgrade --refresh "${YES[@]}" || failed+=("dnf")
+
+# ── 2. Flatpak ──────────────────────────────────────────────────────────────
+if command -v flatpak >/dev/null; then
+    step "Flatpak: Apps aktualisieren"
+    # System-Installation (flathub ist "system") → mit sudo, Passwort ist schon gecacht
+    sudo flatpak update "${YES[@]}" || failed+=("flatpak")
+    step "Flatpak: ungenutzte Runtimes entfernen"
+    sudo flatpak uninstall --unused "${YES[@]}" || failed+=("flatpak cleanup")
+fi
+
+# ── 3. Firmware (nur anzeigen) ──────────────────────────────────────────────
+if command -v fwupdmgr >/dev/null; then
+    step "Firmware: nach Updates suchen"
+    fwupdmgr refresh >/dev/null 2>&1
+    if fwupdmgr get-updates 2>/dev/null; then
+        echo -e "${YELLOW}Firmware-Updates verfügbar. Einspielen mit: fwupdmgr update${RESET}"
+    else
+        echo "Keine Firmware-Updates."
+    fi
+fi
+
+# ── 4. Zusammenfassung ──────────────────────────────────────────────────────
+step "Fertig"
+if [ ${#failed[@]} -eq 0 ]; then
+    echo -e "${GREEN}✔ Alles aktualisiert.${RESET}"
+else
+    echo -e "${RED}✘ Fehlgeschlagen/abgebrochen: ${failed[*]}${RESET}"
+fi
+
+# needs-restarting: Exit-Code 1 = Neustart empfohlen (z.B. neuer Kernel)
+if ! dnf needs-restarting >/dev/null 2>&1; then
+    echo -e "${YELLOW}⟳ Neustart empfohlen (Kernel/Kernbibliotheken wurden aktualisiert).${RESET}"
+fi
+
+# Aus dem Noctalia-Menü gestartet (PKG_WAIT=1): Fenster offen halten
+[ -n "${PKG_WAIT:-}" ] && read -rp $'\nEnter zum Schließen … ' _
+[ ${#failed[@]} -eq 0 ]

@@ -1,0 +1,2 @@
+# Bevorzugtes Terminal für xdg-terminal-exec (von GLib/Thunar genutzt, um Terminal=true-Apps wie nvim zu starten)
+kitty.desktop

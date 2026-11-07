@@ -1,0 +1,6 @@
+# Eigenes Noctalia-Template für ZenNotes (kein Community-Template vorhanden).
+# Noctalia führt alle *.toml in diesem Ordner zusammen, daher reicht diese Datei.
+# ZenNotes lädt das erzeugte theme.css live; ausgewählt ist es in ~/.config/zennotes/config.toml (home/zennotes).
+[theme.templates.user.zennotes]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/zennotes-theme.css"
+output_path = "$XDG_CONFIG_HOME/zennotes/themes/noctalia/theme.css"

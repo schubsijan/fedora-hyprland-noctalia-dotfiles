@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# pkg-copr – COPR-Projekt per fzf suchen, aktivieren und Pakete daraus installieren
+#
+#   pkg-copr [suchtext]
+#
+# 1. Suchbegriff (Argument oder Abfrage) → EINE Online-Suche in COPR, danach
+#    lokal in fzf filtern. Keine Live-Suche beim Tippen: die COPR-Such-API
+#    braucht ~8–10 s pro Anfrage. Die Vorschau zeigt Beschreibung und ob es
+#    einen Build für die eigene Fedora-Version gibt.
+# 2. Enter → "sudo dnf copr enable owner/projekt"
+# 3. Pakete des Projekts wählen (Tab: mehrere) → "sudo dnf install"
+#    Esc in Schritt 3: nur das Repo bleibt aktiviert, nichts wird installiert.
+
+set -uo pipefail
+command -v fzf >/dev/null || { echo "fzf fehlt: sudo dnf install fzf" >&2; exit 1; }
+command -v jq >/dev/null || { echo "jq fehlt: sudo dnf install jq" >&2; exit 1; }
+
+API="https://copr.fedorainfracloud.org/api_3"
+TAB=$'\t'
+GREY=$'\e[90m'
+RESET=$'\e[0m'
+SELF=$(printf %q "$0")   # für fzf-Bindings (Shell-gequotet)
+CHROOT="fedora-$(rpm -E %fedora)-$(uname -m)"
+
+# Beenden; aus dem Noctalia-Menü gestartet (PKG_WAIT=1) erst auf Enter warten,
+# damit das kitty-Fenster nicht sofort verschwindet
+finish() {
+    [ -n "${PKG_WAIT:-}" ] && read -rp $'\nEnter zum Schließen … ' _
+    exit "$1"
+}
+
+# ── interne Helfer, werden von fzf über "$0 --…" aufgerufen ─────────────────
+
+case "${1:-}" in
+    --info)
+        p=$2
+        [[ "$p" == */* ]] || exit 0
+        curl -fsS -m 10 -G "$API/project" \
+            --data-urlencode "ownername=${p%%/*}" --data-urlencode "projectname=${p#*/}" |
+            jq -r --arg c "$CHROOT" '
+                "\(.full_name)\n",
+                (if (.chroot_repos | has($c)) then "✔ Build für \($c) vorhanden"
+                 else "✘ KEIN Build für \($c) – Installation wird vermutlich scheitern" end),
+                "\nChroots: \(.chroot_repos | keys | join(", "))",
+                "\nHomepage: \(.homepage // "-")",
+                "\n\(.description // "")",
+                "\n\(.instructions // "")"'
+        exit 0
+        ;;
+esac
+
+# ── 1. Projekt suchen ───────────────────────────────────────────────────────
+
+query="$*"
+while [ ${#query} -lt 3 ]; do
+    read -rp "COPR durchsuchen (mind. 3 Zeichen, leer = abbrechen): " query || exit 0
+    [ -n "$query" ] || exit 0
+done
+
+echo "Suche in COPR nach „$query“ … (die COPR-API braucht ca. 10 s)"
+results=$(
+    curl -fsS -m 30 -G "$API/project/search" --data-urlencode "query=$query" --data-urlencode "limit=100" |
+        jq -r --arg g "$GREY" --arg r "$RESET" \
+            '.items[] | "\(.full_name)\t\($g)\((.description // "") | gsub("[\\r\\n\\t]+"; " ") | .[0:100])\($r)"'
+) || { echo "COPR-Suche fehlgeschlagen (Internet? Timeout?)." >&2; finish 1; }
+[ -n "$results" ] || { echo "Keine COPR-Projekte zu „$query“ gefunden."; finish 0; }
+
+project=$(
+    printf '%s\n' "$results" |
+    fzf --ansi \
+        --delimiter "$TAB" \
+        --prompt "copr ($query)> " \
+        --header "Tippen = Ergebnisse filtern · Enter: Projekt aktivieren · Esc: abbrechen" \
+        --preview "$SELF --info {1}" \
+        --preview-label 'alt-p: Info ein/aus · alt-j/k: scrollen' --preview-label-pos bottom \
+        --preview-window 'down:55%:wrap' \
+        --bind 'alt-p:toggle-preview' \
+        --bind 'alt-k:preview-up,alt-j:preview-down' \
+        --color 'pointer:green,marker:green' |
+        cut -f1
+)
+[[ "$project" == */* ]] || exit 0
+
+# ── 2. Repo aktivieren ──────────────────────────────────────────────────────
+
+echo -e "\e[1m==> sudo dnf copr enable $project\e[0m"
+sudo dnf copr enable "$project" || finish $?
+
+# ── 3. Pakete daraus wählen ─────────────────────────────────────────────────
+
+selection=$(
+    curl -fsS -m 10 -G "$API/package/list" \
+        --data-urlencode "ownername=${project%%/*}" --data-urlencode "projectname=${project#*/}" |
+        jq -r '.items[].name' | sort -u |
+        fzf --multi --select-1 \
+            --prompt "install ($project)> " \
+            --header "Enter: installieren · Tab: mehrere wählen · Esc: nur Repo aktiviert lassen" \
+            --preview 'dnf info -q --available {1} 2>/dev/null' \
+            --preview-window 'down:60%:wrap' \
+            --bind 'alt-p:toggle-preview' \
+            --bind 'alt-k:preview-up,alt-j:preview-down' \
+            --color 'pointer:green,marker:green'
+)
+
+if [ -z "$selection" ]; then
+    echo "Repo $project ist aktiviert, nichts installiert."
+    echo "Wieder entfernen mit: sudo dnf copr remove $project"
+    finish 0
+fi
+mapfile -t pkgs <<<"$selection"
+
+echo -e "\n\e[1m==> sudo dnf install ${pkgs[*]}\e[0m"
+sudo dnf install "${pkgs[@]}"
+finish $?

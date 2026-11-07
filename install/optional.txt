@@ -1,0 +1,27 @@
+# Optionale Programme – install.sh bietet sie zur Auswahl an (fzf, Tab = markieren).
+# Neues Programm, das auf jedem frischen System da sein soll? Einfach hier ergänzen.
+#
+# Format:  <quelle> <paket> # Beschreibung
+#
+#   dnf                    Paket aus den Fedora-Repos
+#   copr:<owner>/<projekt> Paket aus einem COPR (Repo wird vorher aktiviert)
+#   flatpak                App-ID von Flathub
+#   script                 führt install/optional/<paket>.sh aus (für Sonderfälle, z.B. Tarballs);
+#                          mit --status und --remove taucht es auch in pkg-remove auf
+#
+# "## Überschrift" gruppiert die folgenden Einträge in der Auswahl.
+#
+# Updates: dnf, copr und flatpak laufen über pkg-update mit.
+# script-Programme müssen sich selbst aktualisieren (oder manuell neu installiert werden).
+
+## Browser
+copr:imput/helium           helium-bin      # Helium (COPR vom Hersteller)
+
+## Notizen
+copr:scottames/zennotes     zennotes        # ZenNotes (Fremd-COPR, verpackt aber nur das offizielle RPM neu)
+
+## Zitation
+script                      zotero          # Zotero (offizieller Tarball, aktualisiert sich nach einmaligem install selbst)
+
+## Spiele
+copr:g3tchoo/prismlauncher  prismlauncher   # Prism Launcher (COPR, offiziell auf der Website von Prism mit angegeben)

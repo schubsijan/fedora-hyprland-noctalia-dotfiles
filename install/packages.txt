@@ -1,0 +1,36 @@
+# Dotfiles-Verwaltung
+stow
+# GitHub-CLI: Anmeldung und Zugangsdaten für git push über HTTPS (siehe git-setup)
+gh
+
+# Audio: SOF-Firmware für Intel-Tiger-Lake-DSP (HP-Laptop) – ohne sie keine interne Soundkarte (Lautsprecher/Mikro), nur Bluetooth funktioniert
+alsa-sof-firmware
+# ALSA-Tools (aplay, alsamixer) zur Fehlersuche
+alsa-utils
+
+# pkg-install, pkg-remove, pkg-copr: fzf für die Suche, curl+jq für die COPR-API
+curl
+jq
+fzf
+
+# Keyring: PAM-Modul entsperrt den "login"-Keyring beim greetd-Login mit dem Login-Passwort –
+# ohne es fragt Helium/Chromium bei jedem Start nach einem Keyring-Passwort
+gnome-keyring-pam
+
+# Neovim (home/nvim): ripgrep, tree-sitter-cli, wl-clipboard kommen als schwache Abhängigkeiten mit,
+# make/gcc über minimaDots (cmake, golang). npm braucht Mason für die npm-basierten LSPs (z.B. Svelte)
+neovim
+npm
+
+# bat: kommt nicht über minimaDots; das Noctalia-Template "bat" setzt das Theme in ~/.config/bat/config
+bat
+
+# Boot-Splash/LUKS-Passwortabfrage: eigenes Plymouth-Theme "noctalia" (system/usr/share/plymouth/themes/noctalia)
+# braucht das script-Plugin, label für Textmeldungen; Schrift Cantarell (im Theme gesetzt)
+plymouth-plugin-script
+plymouth-plugin-label
+abattis-cantarell-vf-fonts
+
+# Terminal für .desktop-Dateien mit Terminal=true (z.B. nvim aus Thunar): GLib kennt kitty nicht,
+# fragt aber xdg-terminal-exec – das liest ~/.config/xdg-terminals.list (home/xdg/)
+xdg-terminal-exec

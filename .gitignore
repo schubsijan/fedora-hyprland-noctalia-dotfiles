@@ -1,0 +1,8 @@
+# Backups von install.sh, falls sie doch mal im Repo landen
+*.bak.*
+# Python-Cache der Hypr-Skripte
+__pycache__/
+*.pyc
+# Editor-Reste
+*.swp
+*~

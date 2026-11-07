@@ -1,0 +1,22 @@
+# Eigenes Plugin: Paket-Menü im Noctalia-Launcher (Präfix /pkg).
+# Startet die Befehle aus bin/ (pkg-install, pkg-remove, pkg-copr) in kitty.
+# Enthält außerdem das Theme-Untermenü (/pkg theme).
+# Shortcuts: SUPER+ALT+SPACE, Themes direkt: SUPER+ALT+T (siehe hypr/keybind.lua).
+
+id = "schubsi/pkg-menu"
+name = "Paket-Menü"
+version = "2.0.0"
+plugin_api = 26
+author = "schubsi"
+license = "MIT"
+dependencies = []
+tags = ["launcher", "dnf"]
+icon = "package"
+description = "Paket installieren/entfernen und COPR – öffnet die fzf-Befehle im Terminal. Dazu ein Untermenü zum Theme-Wechsel."
+
+[[launcher_provider]]
+id = "launcher"
+entry = "launcher.luau"
+prefix = "pkg"
+glyph = "package"
+include_in_global_search = false

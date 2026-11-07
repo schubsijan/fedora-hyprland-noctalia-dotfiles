@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# lid-awake – dauerhaft einstellen, ob der Laptop zugeklappt weiterläuft
+#
+#   lid-awake [toggle|on|off|status]     (Standard: toggle)
+#
+# "an" schreibt ein logind-Drop-in, das Zuklappen ignoriert (Akku, Netzteil und Dock),
+# "aus" löscht es wieder (Fedora-Standard: Zuklappen = Suspend). Danach wird logind neu
+# geladen, laufende Sitzungen bleiben dabei erhalten. Braucht sudo; die Einstellung
+# überlebt Neustarts. Im Menü: SUPER+ALT+SPACE → "Zuklappen …" (pkg-menu-Plugin).
+# Automatisches Sperren/Bildschirm-aus regelt das NICHT – dafür Caffeine (SUPER+CTRL+I).
+
+set -euo pipefail
+
+DROPIN=/etc/systemd/logind.conf.d/50-lid-awake.conf
+
+is_on() { [ -f "$DROPIN" ]; }
+
+notify() { noctalia msg notification-show "$1" >/dev/null 2>&1 || true; echo "$1"; }
+
+reload_logind() { sudo systemctl reload systemd-logind; }
+
+on() {
+	is_on && { echo "Ist schon an."; return 0; }
+	sudo install -D -m 644 /dev/stdin "$DROPIN" <<-'EOF'
+		# Von lid-awake (Dotfiles) angelegt: Zuklappen ignorieren, Laptop läuft weiter.
+		# Entfernen mit "lid-awake off".
+		[Login]
+		HandleLidSwitch=ignore
+		HandleLidSwitchExternalPower=ignore
+		HandleLidSwitchDocked=ignore
+	EOF
+	reload_logind
+	notify "Zuklappen: Laptop läuft weiter"
+}
+
+off() {
+	is_on || { echo "Ist schon aus."; return 0; }
+	sudo rm -f "$DROPIN"
+	reload_logind
+	notify "Zuklappen: Suspend (Standard)"
+}
+
+status() {
+	if is_on; then echo "an – Zuklappen wird ignoriert"; else echo "aus – Zuklappen = Suspend"; fi
+}
+
+case "${1:-toggle}" in
+	toggle) if is_on; then off; else on; fi ;;
+	on) on ;;
+	off) off ;;
+	status) status; is_on ;;
+	*) echo "Benutzung: lid-awake [toggle|on|off|status]" >&2; exit 2 ;;
+esac
+
+# Aus dem Noctalia-Menü gestartet (PKG_WAIT=1): Fenster offen halten
+[ -n "${PKG_WAIT:-}" ] && read -rp $'\nEnter zum Schließen … ' _
+exit 0

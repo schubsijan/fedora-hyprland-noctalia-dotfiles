@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# git-setup – Git und GitHub nach einer Neuinstallation einrichten (einmalig nach der ersten Anmeldung).
+#
+#   1. bei GitHub anmelden (gh, HTTPS, im Browser), falls noch nicht angemeldet
+#   2. gh als Credential-Helper für git eintragen (git push über HTTPS ohne Passwortabfrage)
+#   3. Name und E-Mail für Commits setzen, falls noch nicht gesetzt
+#
+# Als E-Mail wird die anonyme Noreply-Adresse von GitHub vorgeschlagen, damit die echte Adresse
+# nicht in öffentlichen Commits steht. Kann gefahrlos mehrfach aufgerufen werden.
+set -euo pipefail
+
+HOST="github.com"
+
+for cmd in git gh; do
+	if ! command -v "$cmd" >/dev/null; then
+		echo "Abbruch: '$cmd' fehlt (sudo dnf install $cmd)." >&2
+		exit 1
+	fi
+done
+
+# $1: Frage, $2: Vorschlag (Enter übernimmt ihn)
+ask() {
+	local answer
+	read -rp "$1 [$2]: " answer
+	echo "${answer:-$2}"
+}
+
+# 1. Anmeldung
+if gh auth status --hostname "$HOST" >/dev/null 2>&1; then
+	echo "✓ Bei GitHub angemeldet."
+else
+	echo "→ Anmeldung bei GitHub (öffnet den Browser) …"
+	gh auth login --hostname "$HOST" --git-protocol https --web
+fi
+
+# 2. git nutzt gh für die Zugangsdaten
+gh auth setup-git --hostname "$HOST"
+echo "✓ git verwendet gh für $HOST."
+
+# 3. Name und E-Mail für Commits
+if [[ -n $(git config --global user.name) && -n $(git config --global user.email) ]]; then
+	echo "✓ Git-Identität: $(git config --global user.name) <$(git config --global user.email)>"
+	exit 0
+fi
+
+# Vorschläge aus dem GitHub-Konto. Der Login steht lokal in der gh-Config, ID und Name kommen
+# von der API. Ist GitHub gerade nicht erreichbar, gibt es keinen E-Mail-Vorschlag.
+login=$(gh config get -h "$HOST" user 2>/dev/null || true)
+id="" name=""
+if user_info=$(gh api user --jq '"\(.id)\t\(.name // "")"' 2>/dev/null); then
+	IFS=$'\t' read -r id name <<<"$user_info"
+else
+	echo "! GitHub-API nicht erreichbar, bitte Name und E-Mail selbst eingeben." >&2
+fi
+
+name=$(ask "Name für Commits" "${name:-$login}")
+email=$(ask "E-Mail für Commits" "${id:+${id}+${login}@users.noreply.${HOST}}")
+if [[ -z $name || -z $email ]]; then
+	echo "Abbruch: Name und E-Mail dürfen nicht leer sein." >&2
+	exit 1
+fi
+
+git config --global user.name "$name"
+git config --global user.email "$email"
+echo "✓ Git-Identität: $name <$email>"

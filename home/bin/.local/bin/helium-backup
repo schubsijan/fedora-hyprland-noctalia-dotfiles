@@ -1,0 +1,247 @@
+#!/usr/bin/env bash
+# helium-backup – Helium-Profil sichern und wiederherstellen (interaktives Menü)
+#
+#   helium-backup
+#
+# Export: fragt nach dem Backup-Ordner, schreibt helium-backup_<host>_<datum>.tar.gz + .sha256
+# Import: fragt nach Backup-Ordner oder Archiv, prüft die Prüfsumme und entpackt;
+#         das bisherige Profil bleibt als net.imput.helium.bak_<datum> daneben liegen.
+#
+# Nicht im Backup: Caches, gespeicherte Passwörter (Login Data*) und Cookies. Nach einem
+# Import ist man also überall ausgeloggt und die Passwörter fehlen im neuen Profil.
+#
+# Umgebungsvariable:
+#   HELIUM_SRC   Profilverzeichnis (Standard: ~/.config/net.imput.helium)
+#
+# Idee und Archivformat von https://github.com/marcel-schliwka/Helium-Bowser-Profile-Backup,
+# für diese Dotfiles als reines Bash-Script für Linux neu geschrieben.
+#
+# MIT License
+#
+# Copyright (c) 2026 Marcel
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+set -uo pipefail
+umask 077   # Archive enthalten weiterhin private Daten (History, Erweiterungsdaten …)
+
+PROFILE=$(realpath -m "${HELIUM_SRC:-$HOME/.config/net.imput.helium}")
+DEFAULT_DIR="$HOME/Backups/Helium"
+
+# Ohne "/" passt tar auf den Namen in jeder Verzeichnisebene
+EXCLUDES=(
+    # Zugangsdaten
+    --exclude='Login Data*'
+    --exclude='*Cookies'
+    --exclude='*Cookies-journal'
+    # Caches
+    --exclude='Cache'
+    --exclude='Code Cache'
+    --exclude='GPUCache'
+    --exclude='ShaderCache'
+    --exclude='GrShaderCache'
+    --exclude='GPUPersistentCache'
+    --exclude='DawnGraphiteCache'
+    --exclude='DawnWebGPUCache'
+    --exclude='CacheStorage'
+    --exclude='component_crx_cache'
+    # Laufzeitdaten: Singleton* verweist auf den laufenden Browser und würde das
+    # wiederhergestellte Profil als "in Benutzung" markieren
+    --exclude='Singleton*'
+    --exclude='Crashpad'
+    --exclude='Crash Reports'
+    --exclude='BrowserMetrics-spare.pma'
+)
+
+if [ -t 1 ]; then
+    BLUE=$'\e[1;34m' GREEN=$'\e[1;32m' YELLOW=$'\e[1;33m' RED=$'\e[1;31m' RESET=$'\e[0m'
+else
+    BLUE='' GREEN='' YELLOW='' RED='' RESET=''
+fi
+
+log()  { echo "${BLUE}[helium-backup]${RESET} $*"; }
+ok()   { echo "${GREEN}[ok]${RESET} $*"; }
+warn() { echo "${YELLOW}[warnung]${RESET} $*" >&2; }
+die()  { echo "${RED}[fehler]${RESET} $*" >&2; exit 1; }
+
+# Beim Beenden (auch Strg+C) Zwischenstände wegräumen
+PARTIAL=''
+RESTORE_TMP=''
+cleanup() {
+    [ -n "$PARTIAL" ] && rm -f -- "$PARTIAL"
+    [ -n "$RESTORE_TMP" ] && rm -rf -- "$RESTORE_TMP"
+}
+trap cleanup EXIT
+trap 'echo; log "Abgebrochen."; exit 130' INT TERM
+
+# confirm "Frage" j|n – Standardantwort bei Enter
+confirm() {
+    local hint='[j/N]' answer
+    [ "$2" = j ] && hint='[J/n]'
+    read -rp "$1 $hint " answer || exit 130
+    answer=${answer:-$2}
+    [[ "${answer,,}" =~ ^(j|ja|y|yes)$ ]]
+}
+
+helium_running() { pgrep -x helium >/dev/null; }
+
+# ask_path "Frage" – Antwort landet absolut in $REPLY_PATH (Tab-Vervollständigung, ~ erlaubt)
+ask_path() {
+    local answer
+    read -erp "$1: " -i "$DEFAULT_DIR" answer || exit 130
+    answer=${answer:-$DEFAULT_DIR}
+    REPLY_PATH=$(realpath -m -- "${answer/#\~/$HOME}")
+}
+
+do_export() {
+    [ -d "$PROFILE" ] || die "Profil nicht gefunden: $PROFILE (anderer Pfad: HELIUM_SRC setzen)"
+    log "Quelle: $PROFILE ($(du -sh "$PROFILE" | cut -f1))"
+
+    if helium_running; then
+        warn "Helium läuft: Geöffnete Datenbanken (History …) können inkonsistent sein."
+        confirm "Trotzdem exportieren?" n || { log "Abbruch."; return; }
+    fi
+
+    ask_path "Backup-Ordner"
+    local dir=$REPLY_PATH
+    mkdir -p -- "$dir" || die "Ordner kann nicht angelegt werden: $dir"
+
+    local name archive rc=0
+    name="helium-backup_${HOSTNAME%%.*}_$(date +%Y-%m-%d_%H%M%S).tar.gz"
+    archive="$dir/$name"
+    PARTIAL="$archive.partial"
+
+    log "Schreibe Archiv: $archive"
+    tar -czf "$PARTIAL" "${EXCLUDES[@]}" -C "$(dirname "$PROFILE")" "$(basename "$PROFILE")" || rc=$?
+    # tar-Exit 1: Dateien haben sich beim Lesen geändert (Browser läuft), Archiv ist trotzdem gültig
+    [ "$rc" -le 1 ] || die "tar ist fehlgeschlagen (Exit $rc), kein Backup erstellt."
+    [ "$rc" -eq 0 ] || warn "Einige Dateien haben sich während des Backups geändert."
+
+    mv -- "$PARTIAL" "$archive" || die "Archiv konnte nicht abgelegt werden: $archive"
+    PARTIAL=''
+    log "Berechne SHA-256-Prüfsumme …"
+    (cd "$dir" && sha256sum -- "$name" >"$name.sha256") || die "Prüfsumme konnte nicht geschrieben werden."
+
+    ok "Archiv : $archive ($(du -h "$archive" | cut -f1))"
+    ok "SHA-256: $(cut -d' ' -f1 "$archive.sha256")"
+}
+
+# choose_archive "ordner" – Auswahl landet in $ARCHIVE, neuestes Backup zuerst
+choose_archive() {
+    local archives raw i
+    mapfile -t archives < <(
+        find "$1" -maxdepth 1 -type f -name 'helium-backup_*.tar.gz' -printf '%T@\t%p\n' 2>/dev/null |
+            sort -rn | cut -f2-
+    )
+    [ ${#archives[@]} -gt 0 ] || die "Keine Backups in $1 gefunden."
+
+    echo "Verfügbare Backups (neuestes zuerst):"
+    for i in "${!archives[@]}"; do
+        echo "  [$((i + 1))] $(basename "${archives[i]}") ($(du -h "${archives[i]}" | cut -f1))"
+    done
+    while true; do
+        read -rp "  Auswahl (1-${#archives[@]}, Enter = 1): " raw || exit 130
+        raw=${raw:-1}
+        if [[ "$raw" =~ ^[0-9]+$ ]] && [ "$raw" -ge 1 ] && [ "$raw" -le ${#archives[@]} ]; then
+            ARCHIVE=${archives[raw - 1]}
+            return
+        fi
+        warn "Ungültige Eingabe."
+    done
+}
+
+checksum_ok() {
+    local dir name
+    dir=$(dirname "$1")
+    name=$(basename "$1")
+    if [ ! -f "$1.sha256" ]; then
+        warn "Keine Prüfsummen-Datei gefunden, Prüfung übersprungen."
+        return
+    fi
+    log "Prüfe SHA-256-Prüfsumme ($(du -h "$1" | cut -f1), kann etwas dauern) …"
+    if (cd "$dir" && sha256sum -c --status -- "$name.sha256"); then
+        ok "SHA-256-Prüfsumme stimmt."
+    else
+        warn "SHA-256-Prüfsumme stimmt NICHT: Archiv ist vermutlich beschädigt."
+        return 1
+    fi
+}
+
+do_import() {
+    helium_running && die "Helium läuft: bitte erst beenden."
+
+    ask_path "Backup-Ordner oder Archiv"
+    if [ -f "$REPLY_PATH" ]; then
+        ARCHIVE=$REPLY_PATH
+    else
+        choose_archive "$REPLY_PATH"
+    fi
+
+    if ! checksum_ok "$ARCHIVE"; then
+        confirm "Trotzdem importieren?" n || { log "Abbruch."; return; }
+    fi
+
+    local old
+    old="$PROFILE.bak_$(date +%Y%m%d_%H%M%S)"
+    log "Archiv: $ARCHIVE"
+    log "Ziel  : $PROFILE"
+    [ -e "$PROFILE" ] && log "Das aktuelle Profil wird umbenannt in: $old"
+    log "Mit diesem Script erstellte Backups enthalten keine Passwörter und Cookies: Du bist danach überall ausgeloggt."
+    confirm "Wiederherstellen?" j || { log "Abbruch."; return; }
+
+    # Neben dem Ziel entpacken (gleiches Dateisystem): Der Tausch am Ende besteht nur aus
+    # Umbenennungen, und ein Fehler beim Entpacken lässt das aktuelle Profil unberührt.
+    mkdir -p -- "$(dirname "$PROFILE")" || die "Zielordner kann nicht angelegt werden."
+    RESTORE_TMP=$(mktemp -d -p "$(dirname "$PROFILE")" .helium-restore-XXXXXX) ||
+        die "Temporärer Ordner kann nicht angelegt werden."
+
+    log "Entpacke Archiv …"
+    tar -xzf "$ARCHIVE" -C "$RESTORE_TMP" || die "Archiv kann nicht entpackt werden. Profil unverändert."
+
+    local entries
+    mapfile -t entries < <(find "$RESTORE_TMP" -mindepth 1 -maxdepth 1)
+    if [ ${#entries[@]} -ne 1 ] || [ ! -d "${entries[0]}" ]; then
+        die "Unerwarteter Archivinhalt: genau ein Profilordner erwartet. Profil unverändert."
+    fi
+
+    if [ -e "$PROFILE" ]; then
+        mv -T -- "$PROFILE" "$old" || die "Aktuelles Profil kann nicht umbenannt werden. Profil unverändert."
+    fi
+    if ! mv -T -- "${entries[0]}" "$PROFILE"; then
+        [ -e "$old" ] && mv -T -- "$old" "$PROFILE"
+        die "Profil kann nicht ersetzt werden. Altes Profil wurde zurückgeholt."
+    fi
+
+    ok "Profil wiederhergestellt: $PROFILE"
+    if [ -e "$old" ]; then ok "Altes Profil: $old (löschen, wenn alles passt)"; fi
+}
+
+echo "Helium Backup & Restore"
+echo "  Profil: $PROFILE"
+echo
+echo "  [1] Exportieren – aktuelles Profil sichern"
+echo "  [2] Importieren – gesichertes Profil wiederherstellen"
+while true; do
+    read -rp "  Auswahl (1/2): " mode || exit 130
+    case "$mode" in
+        1) do_export; break ;;
+        2) do_import; break ;;
+        *) warn "Bitte 1 oder 2 eingeben." ;;
+    esac
+done

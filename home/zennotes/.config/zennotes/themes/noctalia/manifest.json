@@ -1,0 +1,7 @@
+{
+  "name": "Noctalia",
+  "author": "schubsi",
+  "version": "1.0.0",
+  "description": "Folgt dem aktiven Noctalia-Theme (theme.css wird von Noctalia erzeugt).",
+  "modes": "both"
+}

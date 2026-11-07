@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Schaltet den Autologin in greetd für den aufrufenden Benutzer ein oder aus.
+#
+#   greetd-autologin        einschalten
+#   greetd-autologin off    ausschalten (wieder Login-Screen)
+#
+# Setzt ein verschlüsseltes System und einen Schlüsselbund ohne Passwort voraus, sonst ist das
+# Gerät ungeschützt bzw. der Browser fragt beim Start nach dem Schlüsselbund-Passwort.
+# install.sh ruft es deshalb nur nach Rückfrage auf (lib/autologin.sh). Wirkt ab dem nächsten Systemstart.
+set -euo pipefail
+
+CONFIG="/etc/greetd/config.toml"
+
+# $1: Benutzer für den Autologin, leer = kein Autologin
+render_config() {
+	cat <<-'EOF'
+		[terminal]
+		vt = 1
+
+	EOF
+	if [[ -n $1 ]]; then
+		# Läuft nur einmal pro Systemstart, danach (z.B. nach dem Abmelden) kommt der Greeter.
+		# Die Variablen setzt sonst der Greeter.
+		# Ausgabe nach /dev/null: start-hyprland und Hyprland schreiben sonst beim Start und Beenden
+		# Text auf tty1 ("Welcome to Hyprland!" usw.). Das Log steht weiter in $XDG_RUNTIME_DIR/hypr/*/hyprland.log.
+		cat <<-EOF
+			[initial_session]
+			command = "env XDG_SESSION_TYPE=wayland XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_DESKTOP=Hyprland /usr/bin/start-hyprland > /dev/null 2>&1"
+			user = "$1"
+
+		EOF
+	fi
+	cat <<-'EOF'
+		[default_session]
+		command = "/usr/sbin/noctalia-greeter-session"
+		user = "greeter"
+	EOF
+}
+
+main() {
+	if ((EUID != 0)); then
+		exec sudo "$0" "$@"
+	fi
+
+	local user=""
+	case "${1:-on}" in
+	on)
+		user="${SUDO_USER:-}"
+		if [[ -z $user || $user == root ]]; then
+			echo "Abbruch: Bitte als normaler Benutzer aufrufen, nicht als root." >&2
+			exit 1
+		fi
+		;;
+	off) ;;
+	*)
+		echo "Aufruf: greetd-autologin [on|off]" >&2
+		exit 1
+		;;
+	esac
+
+	local new
+	new=$(mktemp)
+	render_config "$user" >"$new"
+	cp -a "$CONFIG" "$CONFIG.bak.$(date +%s)"
+	install -m644 "$new" "$CONFIG"
+	rm -f "$new"
+
+	if [[ -n $user ]]; then
+		echo "Autologin für $user eingeschaltet. Wirkt ab dem nächsten Systemstart."
+	else
+		echo "Autologin ausgeschaltet. Wirkt ab dem nächsten Systemstart."
+	fi
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+	main "$@"
+fi

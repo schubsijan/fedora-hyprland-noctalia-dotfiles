@@ -1,0 +1,4 @@
+# SSH-Server nicht automatisch aktivieren (auch nicht bei Neuinstallation von
+# openssh-server). Für git/GitHub wird er nicht gebraucht, nur für Logins von außen.
+# Durchgesetzt wird das zusätzlich von _system_hook_sshd in install/lib/system.sh.
+disable sshd.service

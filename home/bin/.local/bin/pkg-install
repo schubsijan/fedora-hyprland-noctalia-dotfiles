@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# pkg-install – Pakete aus den Fedora-Repos per fzf suchen und installieren
+# (nach dem Vorbild von omarchy-pkg-install)
+#
+#   pkg-install [suchtext]
+#
+# Enter: installieren · Tab: mehrere wählen · alt-p: Info ein/aus · alt-j/k: Info scrollen
+
+set -uo pipefail
+command -v fzf >/dev/null || { echo "fzf fehlt: sudo dnf install fzf" >&2; exit 1; }
+
+TAB=$'\t'
+GREY=$'\e[90m'
+RESET=$'\e[0m'
+
+selection=$(
+    dnf repoquery --available --latest-limit=1 -q \
+        --queryformat "%{name}${TAB}%{summary}\n" 2>/dev/null |
+        sort -u -t "$TAB" -k1,1 |
+        sed "s/${TAB}\(.*\)/${TAB}${GREY}\1${RESET}/" |
+        fzf --ansi --multi --query "$*" \
+            --delimiter "$TAB" --nth 1 \
+            --prompt "install> " \
+            --header "Enter: installieren · Tab: mehrere wählen · Esc: abbrechen" \
+            --preview 'dnf info -q --available {1} 2>/dev/null' \
+            --preview-label 'alt-p: Info ein/aus · alt-j/k: scrollen' --preview-label-pos bottom \
+            --preview-window 'down:60%:wrap' \
+            --bind 'alt-p:toggle-preview' \
+            --bind 'alt-d:preview-half-page-down,alt-u:preview-half-page-up' \
+            --bind 'alt-k:preview-up,alt-j:preview-down' \
+            --color 'pointer:green,marker:green' |
+        cut -f1
+)
+
+[ -n "$selection" ] || exit 0
+mapfile -t pkgs <<<"$selection"
+
+echo -e "\e[1m==> sudo dnf install ${pkgs[*]}\e[0m"
+sudo dnf install -y "${pkgs[@]}"
+rc=$?
+
+# Aus dem Noctalia-Menü gestartet (PKG_WAIT=1): Fenster offen halten
+[ -n "${PKG_WAIT:-}" ] && read -rp $'\nEnter zum Schließen … ' _
+exit "$rc"

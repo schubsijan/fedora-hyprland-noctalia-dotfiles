@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# Macht Fedora zum ersten und vorausgewählten Limine-Eintrag und blendet das GRUB-Menü aus.
+# Windows und Omarchy bleiben in Limine wählbar.
+#
+# Darf wiederholt werden: Omarchy erzeugt die limine.conf bei Updates neu (limine-entry-tool),
+# danach kann die Reihenfolge wieder die alte sein.
+#
+# Rückgängig: Backup limine.conf.vor-fedora-first.* zurückkopieren und
+#             sudo grub2-editenv - unset menu_auto_hide
+set -euo pipefail
+
+LIMINE_UUID="7C67-642B" # OMARCHY_EFI (nvme0n1p6), von dort startet Limine
+TIMEOUT=3
+MOUNT_DIR="/run/boot-fedora-first"
+
+# Stellt den Block "/Fedora" vor alle anderen Einträge und setzt Standardeintrag und Timeout.
+# Hauptebene = Zeilen, die direkt mit "/" beginnen; Untereinträge sind eingerückt.
+transform() {
+	awk -v timeout="$TIMEOUT" '
+		/^\// { section = ($0 == "/Fedora") ? "fedora" : "rest"; if (section == "fedora") found = 1 }
+		section == "" {
+			if ($0 ~ /^#?timeout:/) { print "timeout: " timeout; has_timeout = 1; next }
+			if ($0 ~ /^default_entry:/) { print "default_entry: 1"; has_default = 1; next }
+			print
+			next
+		}
+		section == "fedora" {
+			# Höhere Priorität steht weiter oben (Omarchy 50, Windows 20)
+			if ($0 ~ /order-priority=/) sub(/order-priority=[0-9]+/, "order-priority=60")
+			fedora[++f] = $0
+			next
+		}
+		{ rest[++r] = $0 }
+		END {
+			if (!found || !has_default || !has_timeout) exit 3
+			for (i = 1; i <= f; i++) print fedora[i]
+			for (i = 1; i <= r; i++) print rest[i]
+		}
+	' "$1"
+}
+
+# Eine in Limine eingetragene Konfigurations-Prüfsumme würde jede Änderung mit einem Abbruch quittieren.
+config_hash_enrolled() {
+	local hash
+	hash=$(strings -n 26 "$1" | grep -m1 -oE '\+\+CONFIG_B2SUM_SIGNATURE\+\+[0-9a-f]*' | sed 's/.*++//' || true)
+	[[ -n $hash && ! $hash =~ ^0+$ ]]
+}
+
+main() {
+	if ((EUID != 0)); then
+		exec sudo "$0" "$@"
+	fi
+
+	mkdir -p "$MOUNT_DIR"
+	mount "UUID=$LIMINE_UUID" "$MOUNT_DIR"
+	trap 'umount "$MOUNT_DIR"; rmdir "$MOUNT_DIR"' EXIT
+
+	local conf="$MOUNT_DIR/limine.conf"
+	if config_hash_enrolled "$MOUNT_DIR/EFI/limine/limine_x64.efi"; then
+		echo "Abbruch: Limine prüft die Prüfsumme der limine.conf. Es wurde nichts geändert." >&2
+		exit 1
+	fi
+
+	local new
+	new=$(mktemp)
+	if ! transform "$conf" >"$new"; then
+		rm -f "$new"
+		echo "Abbruch: Fedora-Eintrag, default_entry oder timeout nicht gefunden. Es wurde nichts geändert." >&2
+		exit 1
+	fi
+
+	cp "$conf" "$conf.vor-fedora-first.$(date +%Y%m%d-%H%M%S)"
+	cp "$new" "$conf"
+	rm -f "$new"
+	sync
+
+	# Wert 2: Menü auch ausblenden, wenn GRUB andere Systeme kennt (hier Windows)
+	grub2-editenv - set menu_auto_hide=2
+	# Bewusst KEIN fastboot=1: Damit setzt /etc/grub.d/12_menu_auto_hide timeout_style=menu + timeout=0,
+	# und GRUB schreibt "Booting `Fedora Linux …'" auf den Bildschirm (bleibt bis nach der LUKS-Abfrage
+	# sichtbar). Ohne fastboot: timeout_style=hidden + 1 s unsichtbares Warten, dabei unterdrückt
+	# Fedoras GRUB die Meldung. Nach einem Absturz erscheint das Menü weiterhin.
+	# Menü erzwingen: sudo grub2-set-bootflag menu_show_once
+	grub2-editenv - unset fastboot color_normal menu_color_normal menu_color_highlight
+
+	echo "Fertig. Reihenfolge in Limine:"
+	grep -E '^/' "$conf"
+	grep -E '^(timeout|default_entry):' "$conf"
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+	main "$@"
+fi

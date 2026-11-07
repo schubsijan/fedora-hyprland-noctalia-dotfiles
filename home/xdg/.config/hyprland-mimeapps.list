@@ -1,0 +1,75 @@
+# Standard-Programme unter Hyprland (XDG_CURRENT_DESKTOP=Hyprland).
+# Hat Vorrang vor ~/.config/mimeapps.list. Programme (xdg-mime, GUI, Browser) schreiben
+# nur in mimeapps.list, diese Datei bleibt also unangetastet. Was hier steht, gilt immer;
+# alles andere fällt auf mimeapps.list zurück (lokal, nicht im Repo).
+# Prüfen: xdg-mime query default <typ>   |   Typ einer Datei: xdg-mime query filetype <datei>
+
+[Default Applications]
+# Dateimanager
+inode/directory=thunar.desktop
+application/x-gnome-saved-search=thunar.desktop
+
+# Browser
+text/html=helium.desktop
+application/xhtml+xml=helium.desktop
+x-scheme-handler/http=helium.desktop
+x-scheme-handler/https=helium.desktop
+x-scheme-handler/about=helium.desktop
+x-scheme-handler/unknown=helium.desktop
+
+# PDF (kein eigener Viewer installiert -> Browser)
+application/pdf=helium.desktop
+
+# Text / Code
+text/plain=nvim.desktop
+text/markdown=ZenNotes.desktop
+text/x-shellscript=nvim.desktop
+text/x-python=nvim.desktop
+text/x-lua=nvim.desktop
+text/x-csrc=nvim.desktop
+text/x-chdr=nvim.desktop
+application/json=nvim.desktop
+application/toml=nvim.desktop
+application/x-yaml=nvim.desktop
+application/xml=nvim.desktop
+application/x-desktop=nvim.desktop
+application/octet-stream=nvim.desktop
+
+# Bilder
+image/png=org.gnome.Loupe.desktop
+image/jpeg=org.gnome.Loupe.desktop
+image/gif=org.gnome.Loupe.desktop
+image/webp=org.gnome.Loupe.desktop
+image/bmp=org.gnome.Loupe.desktop
+image/tiff=org.gnome.Loupe.desktop
+image/svg+xml=org.gnome.Loupe.desktop
+image/avif=org.gnome.Loupe.desktop
+image/heic=org.gnome.Loupe.desktop
+
+# Video
+video/mp4=mpv.desktop
+video/x-matroska=mpv.desktop
+video/webm=mpv.desktop
+video/quicktime=mpv.desktop
+video/x-msvideo=mpv.desktop
+video/mpeg=mpv.desktop
+video/ogg=mpv.desktop
+
+# Audio
+audio/mpeg=mpv.desktop
+audio/flac=mpv.desktop
+audio/ogg=mpv.desktop
+audio/x-wav=mpv.desktop
+audio/mp4=mpv.desktop
+audio/aac=mpv.desktop
+audio/opus=mpv.desktop
+
+# Archive
+application/zip=org.gnome.FileRoller.desktop
+application/x-tar=org.gnome.FileRoller.desktop
+application/x-compressed-tar=org.gnome.FileRoller.desktop
+application/x-xz-compressed-tar=org.gnome.FileRoller.desktop
+application/x-zstd-compressed-tar=org.gnome.FileRoller.desktop
+application/x-7z-compressed=org.gnome.FileRoller.desktop
+application/vnd.rar=org.gnome.FileRoller.desktop
+application/gzip=org.gnome.FileRoller.desktop
