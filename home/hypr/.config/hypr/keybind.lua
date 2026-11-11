@@ -41,6 +41,8 @@ local KEY = {
 hl.bind(KEY.TERMINAL, hl.dsp.exec_cmd(TERMINAL), { description = "Terminal" })
 hl.bind(KEY.EXPLORER, hl.dsp.exec_cmd(EXPLORER), { description = "File manager" })
 hl.bind(KEY.BROWSER, hl.dsp.exec_cmd(BROWSER), { description = "Browser" })
+hl.bind(("%s + N"):format(mainMod), hl.dsp.exec_cmd("zennotes"), { description = "Notizapp ZenNotes" })
+hl.bind(("%s + Z"):format(mainMod), hl.dsp.exec_cmd("zotero"), { description = "Zotero" })
 
 -- 2. Noctalia
 hl.bind(KEY.LAUNCHER, hl.dsp.exec_cmd("noctalia msg panel-toggle launcher"), { description = "Toggle launcher" })

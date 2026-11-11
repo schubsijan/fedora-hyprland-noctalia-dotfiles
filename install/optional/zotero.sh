@@ -5,13 +5,14 @@
 #
 #   zotero.sh            installieren
 #   zotero.sh --status   Exit 0 und eine Infozeile, wenn installiert (für pkg-remove)
-#   zotero.sh --remove   Programm und Starter entfernen, die Bibliothek bleibt erhalten
+#   zotero.sh --remove   Programm, Starter und Symlink entfernen, die Bibliothek bleibt erhalten
 
 set -euo pipefail
 
 URL="https://www.zotero.org/download/client/dl?channel=release&platform=linux-$(uname -m)"
 TARGET="$HOME/.local/opt/zotero"
 DESKTOP="$HOME/.local/share/applications/zotero.desktop"
+LINK="$HOME/.local/bin/zotero"
 
 case "${1:-}" in
     --status)
@@ -23,6 +24,7 @@ case "${1:-}" in
     --remove)
         rm -rf "$TARGET"
         rm -f "$DESKTOP"
+        [ -L "$LINK" ] && rm -f "$LINK"
         command -v update-desktop-database >/dev/null && update-desktop-database "$(dirname "$DESKTOP")" || true
         echo "    Zotero ist entfernt. Deine Bibliothek bleibt erhalten: ~/Zotero und ~/.zotero"
         exit 0
@@ -50,5 +52,12 @@ sed -e "s|^Exec=.*|Exec=\"$TARGET/zotero\" -url %U|" \
     -e "s|^Icon=.*|Icon=$TARGET/icons/icon128.png|" \
     "$TARGET/zotero.desktop" >"$DESKTOP"
 command -v update-desktop-database >/dev/null && update-desktop-database "$(dirname "$DESKTOP")" || true
+
+# Symlink in den PATH: Zoteros Starter löst seinen Pfad per readlink -f auf, das klappt also.
+# Nur anlegen, wenn dort nicht schon eine echte Datei liegt.
+mkdir -p "$(dirname "$LINK")"
+if [ -L "$LINK" ] || [ ! -e "$LINK" ]; then
+    ln -sfn "$TARGET/zotero" "$LINK"
+fi
 
 echo "    Zotero ist installiert: $TARGET"

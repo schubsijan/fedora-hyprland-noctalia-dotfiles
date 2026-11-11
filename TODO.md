@@ -41,13 +41,13 @@
 - [x] Meine Blutooth-Kopfhörer werden bei einem reboot nicht automatisch conected
   - ich habe das Setting dazu in Noctalia-Setttings einfach mal angemacht. Sollte jetzt klappen
 
-- [ ] Anweisungen zum setupen in README.md anlegen (lassen)
+- [x] Anweisungen zum setupen in README.md anlegen (lassen)
   - [x] auch meine learnings aus dem installieren von Fedora (mit anderem USB-Livemedium und gparted Platz schaffen, die Auswahl der optionen im Fedora-Installer -> Bilder im Handy, setup meines keyboards/wlans..., minimaDots)
     - README, ausklappbarer Block: Ventoy + GParted Live (ein Stick), Tabelle mit den Installer-Einstellungen
   - [x] postinstall Anweisungen zur Anwendung/Installation dieser Dots
   - [x] noch gucken ob ich meine Setups nach dem erstenmal Starten hier alle richtig vermekt habe: Keboard-layot setzen, github und git verknüpfen
     - Tastatur setzt der Fedora-Installer (README-Tabelle), Git/GitHub per `git-setup`
-  - [ ] Repo als git-Repo anlegen und **öffentlich** auf GitHub hochladen (Voraussetzung für den Test auf einem neuen Install)
+  - [x] Repo als git-Repo anlegen und **öffentlich** auf GitHub hochladen (Voraussetzung für den Test auf einem neuen Install)
 
 - [x] Default Programme festlegen und hier backupen
 

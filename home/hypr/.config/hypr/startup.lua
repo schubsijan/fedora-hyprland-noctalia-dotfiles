@@ -40,6 +40,15 @@ for _, item in ipairs(env) do
     end
 end
 
+-- ~/.local/bin in den PATH: greetd startet Hyprland nur mit /usr/local/bin:/usr/bin, fish ergänzt
+-- es erst in der Shell. Ohne das finden exec_cmd-Binds und Launcher z.B. zotero oder pkg-* nicht.
+-- Prüfung verhindert doppelte Einträge bei `hyprctl reload`.
+local local_bin = os.getenv("HOME") .. "/.local/bin"
+local path = os.getenv("PATH") or "/usr/local/bin:/usr/bin"
+if not (":" .. path .. ":"):find(":" .. local_bin .. ":", 1, true) then
+    hl.env("PATH", local_bin .. ":" .. path)
+end
+
 if enable_nvidia_optional then
     for _, item in ipairs(nvidia_optional) do
         local key, value = item:match("^([^,]+),(.+)$")
