@@ -172,10 +172,10 @@ lang = "de"
     layout = "simple"
 
 [theme]
-builtin = "Nord"
+builtin = "Kanagawa"
 community_palette = "Everforest"
 mode = "dark"
-source = "community"
+source = "builtin"
 wallpaper_scheme = "vibrant"
 
     [theme.templates]

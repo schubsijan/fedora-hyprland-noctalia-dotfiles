@@ -11,7 +11,7 @@ local ENTRIES = {
   {
     id = "pkg-update",
     title = "System aktualisieren",
-    subtitle = "dnf (inkl. COPR), Flatpak, Firmware prüfen",
+    subtitle = "dnf (inkl. COPR), Flatpak, Firmware, neue Fedora-Version prüfen",
     glyph = "refresh",
   },
   {

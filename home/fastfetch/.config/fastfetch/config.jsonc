@@ -206,6 +206,27 @@
       "separate": false
     },
     {
+      // Speicherbelegung: / und /home liegen im selben btrfs-Pool, "/" zeigt daher die Gesamtbelegung
+      "type": "disk",
+      "key": "Disk",
+      "keyIcon": "󰋊",
+      "folders": "/",
+      "format": "{size-used} / {size-total} ({size-percentage}) - {filesystem}",
+      "percent": {
+        "green": 50,
+        "yellow": 80,
+        "type": 0
+      }
+    },
+    {
+      // Systemalter = Erstellungszeitpunkt des Root-Dateisystems
+      "type": "disk",
+      "key": "OS Age",
+      "keyIcon": "󰃭",
+      "folders": "/",
+      "format": "{days} Tage (installiert {create-time})"
+    },
+    {
       "type": "battery",
       "keyIcon": "",
       "temp": false,

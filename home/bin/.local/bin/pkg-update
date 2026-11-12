@@ -2,12 +2,13 @@
 # pkg-update – System und Pakete aktualisieren
 #
 #   pkg-update        mit Rückfragen (dnf/flatpak zeigen erst, was sich ändert)
-#   pkg-update -y     ohne Rückfragen
+#   pkg-update -y     ohne Rückfragen (gilt nicht für das Versions-Upgrade, das fragt immer)
 #
 # 1. dnf      sudo dnf upgrade --refresh   (Fedora-Repos + aktivierte COPRs)
 # 2. Flatpak  flatpak update + ungenutzte Runtimes entfernen
 # 3. Firmware nur prüfen und anzeigen (fwupdmgr), nicht automatisch einspielen
-# 4. Hinweis, ob ein Neustart nötig ist (dnf needs-restarting)
+# 4. Zusammenfassung + Hinweis, ob ein Neustart nötig ist (dnf needs-restarting)
+# 5. Neue Fedora-Version? → COPRs und Probelauf prüfen, bei Erfolg Upgrade + Neustart anbieten
 
 set -uo pipefail
 
@@ -21,6 +22,11 @@ RED=$'\e[31m'
 RESET=$'\e[0m'
 
 step() { echo -e "\n${BOLD}==> $*${RESET}"; }
+ok()   { echo -e "  ${GREEN}✔${RESET} $*"; }
+warn() { echo -e "  ${YELLOW}!${RESET} $*"; }
+bad()  { echo -e "  ${RED}✘${RESET} $*"; }
+# Ja/Nein-Frage, Standard Nein. Ohne Terminal immer Nein.
+ask()  { [ -t 0 ] || return 1; local a; read -rp "$1 [j/N] " a; [[ "$a" =~ ^[jJyY]$ ]]; }
 failed=()
 
 # ── 1. dnf ──────────────────────────────────────────────────────────────────
@@ -56,9 +62,131 @@ else
 fi
 
 # needs-restarting: Exit-Code 1 = Neustart empfohlen (z.B. neuer Kernel)
+need_reboot=0
 if ! dnf needs-restarting >/dev/null 2>&1; then
+    need_reboot=1
     echo -e "${YELLOW}⟳ Neustart empfohlen (Kernel/Kernbibliotheken wurden aktualisiert).${RESET}"
 fi
+
+# ── 5. Neue Fedora-Version ──────────────────────────────────────────────────
+# Prüft, ob es eine neuere stabile Fedora-Version gibt, und ob alle COPRs dafür
+# schon Pakete haben. Dann ein Probelauf (distro-sync --assumeno), der nichts ändert.
+# Erst wenn alles passt, wird das Upgrade angeboten (fragt immer, auch mit -y).
+release_check() {
+    local current latest target arch
+    current=$(rpm -E %fedora)
+    arch=$(uname -m)
+
+    # Neueste stabile Version ("45", nicht "45 Beta") aus der offiziellen Liste
+    latest=$(curl -fsS --max-time 10 https://fedoraproject.org/releases.json 2>/dev/null |
+        python3 -I -c 'import json,sys
+v=[int(x["version"]) for x in json.load(sys.stdin) if x["version"].isdigit()]
+print(max(v))' 2>/dev/null) || latest=""
+
+    step "Fedora-Version prüfen"
+    if [ -z "$latest" ]; then
+        warn "Konnte die aktuelle Fedora-Version nicht abrufen (offline?)."
+        return
+    fi
+    if [ "$latest" -le "$current" ]; then
+        ok "Fedora $current ist die neueste Version."
+        return
+    fi
+    # Fedora unterstützt Upgrades über höchstens zwei Versionen
+    target=$(( latest > current + 2 ? current + 2 : latest ))
+    echo -e "  ${BOLD}Fedora $latest ist verfügbar${RESET} (installiert: $current). Prüfe Upgrade auf $target …"
+
+    if [ ${#failed[@]} -ne 0 ]; then
+        bad "Die normalen Updates sind nicht durchgelaufen, das System muss vor dem Upgrade aktuell sein."
+        return
+    fi
+
+    local blockers=0
+
+    # COPRs: hat jedes aktivierte COPR schon einen Build für die neue Version?
+    # (COPR-Quellen haben skip_if_unavailable=True – dnf würde fehlende nur still überspringen)
+    echo -e "\n  ${BOLD}COPRs${RESET}"
+    local line hub owner project chroots any=0
+    while read -r line _; do
+        [[ "$line" == */*/* ]] || continue
+        any=1
+        IFS=/ read -r hub owner project <<<"$line"
+        chroots=$(curl -fsS --max-time 10 -G "https://$hub/api_3/project" \
+            --data-urlencode "ownername=$owner" --data-urlencode "projectname=$project" 2>/dev/null |
+            python3 -I -c 'import json,sys; print(" ".join(json.load(sys.stdin)["chroot_repos"]))' 2>/dev/null)
+        if [ -z "$chroots" ]; then
+            warn "$owner/$project (COPR-Server nicht erreichbar)"
+            blockers=1
+        elif [[ " $chroots " == *" fedora-$target-$arch "* ]]; then
+            ok "$owner/$project"
+        else
+            bad "$owner/$project – noch kein Build für Fedora $target"
+            blockers=1
+        fi
+    done < <(LC_ALL=C dnf copr list 2>/dev/null | grep -v '(disabled)')
+    [ $any -eq 0 ] && echo "  (keine COPRs aktiviert)"
+
+    # Flatpaks laufen in eigenen Runtimes und hängen nicht an der Fedora-Version
+    if command -v flatpak >/dev/null; then
+        echo -e "\n  ${BOLD}Flatpak${RESET}"
+        ok "$(flatpak list --app 2>/dev/null | wc -l) Apps – unabhängig von der Fedora-Version"
+    fi
+
+    # Probelauf: alle Pakete (Fedora, RPM Fusion, COPR) gegen die neue Version auflösen
+    echo -e "\n  ${BOLD}Pakete${RESET} (Probelauf, ändert nichts – kann etwas dauern)"
+    local dry erasing=()
+    dry=$(LC_ALL=C sudo dnf distro-sync --releasever="$target" --assumeno 2>&1)
+    if ! grep -q '^Transaction Summary' <<<"$dry"; then
+        # Klappt es, wenn dnf Pakete entfernen darf?
+        dry=$(LC_ALL=C sudo dnf distro-sync --releasever="$target" --allowerasing --assumeno 2>&1)
+        erasing=(--allowerasing)
+    fi
+    if ! grep -q '^Transaction Summary' <<<"$dry"; then
+        bad "Pakete lassen sich nicht auflösen:"
+        sed -n '/^Failed to resolve/,$p' <<<"$dry" | sed 's/^/      /' | head -30
+        blockers=1
+    else
+        # Pakete, die entfernt würden (alte Kernel ausgeblendet, das ist normal)
+        local removed
+        removed=$(awk '/^Removing/{r=1; next} /^[^ ]/{r=0} r && $1 !~ /^kernel/ {print $1}' <<<"$dry" | sort -u)
+        if [ -n "$removed" ]; then
+            warn "Auflösbar, aber diese Pakete gibt es in Fedora $target nicht mehr und würden entfernt:"
+            sed 's/^/      - /' <<<"$removed"
+        else
+            ok "Alle Pakete sind für Fedora $target verfügbar."
+        fi
+        grep -E '^(Total size|After this operation)' <<<"$dry" | sed 's/^/    /'
+    fi
+
+    echo
+    if [ $blockers -ne 0 ]; then
+        echo -e "${YELLOW}Upgrade auf Fedora $target ist noch nicht bereit. pkg-update prüft beim nächsten Lauf erneut.${RESET}"
+        return
+    fi
+    if [ $need_reboot -eq 1 ]; then
+        warn "Es stehen noch Kernel-Updates aus – idealerweise erst neu starten, dann upgraden."
+    fi
+    if ! ask "${BOLD}Jetzt auf Fedora $target upgraden?${RESET}"; then
+        echo "Später manuell:"
+        echo "  sudo dnf system-upgrade download --releasever=$target ${erasing[*]}"
+        echo "  sudo dnf offline reboot"
+        return
+    fi
+
+    step "Fedora $target herunterladen"
+    if ! sudo dnf system-upgrade download --releasever="$target" "${erasing[@]}" -y; then
+        bad "Download fehlgeschlagen, das System ist unverändert."
+        return
+    fi
+    ok "Upgrade ist vorbereitet und wird beim nächsten Neustart installiert."
+    if ask "${BOLD}Jetzt neu starten und installieren?${RESET} (dauert einige Minuten)"; then
+        sudo dnf offline reboot -y
+    else
+        echo "Installieren beim nächsten Neustart mit: sudo dnf offline reboot"
+        echo "(Ein normaler Neustart installiert es nicht.)"
+    fi
+}
+release_check
 
 # Aus dem Noctalia-Menü gestartet (PKG_WAIT=1): Fenster offen halten
 [ -n "${PKG_WAIT:-}" ] && read -rp $'\nEnter zum Schließen … ' _
