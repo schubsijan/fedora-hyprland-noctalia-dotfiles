@@ -1,6 +1,6 @@
 # fedora-hyprland-noctalia-dotfiles
 
-Meine Dotfiles für Fedora 44 + Hyprland + Noctalia.
+Meine Dotfiles für Fedora + Hyprland + Noctalia.
 Basis: [minimaDots](https://gitlab.com/minimalinux/minimaDots) (fedora_install.sh) — dieses Repo kommt **obendrauf**.
 
 ## Frische Installation
