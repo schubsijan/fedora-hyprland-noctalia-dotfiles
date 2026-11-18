@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# stick-backup-run – Spiegel auf dem USB-Stick aktualisieren (Eintrag im /pkg-Menü)
+#
+#   stick-backup-run [weitere Optionen für "stick-backup run", z.B. --dry-run]
+#
+# Startet "stick-backup run --pause": Das Fenster bleibt am Ende offen (auch bei Fehlern),
+# bis Enter gedrückt wird. Kein --yes, damit Rückfragen (viele Löschungen, anderer
+# Rechner war neuer, Stick auswerfen) im Fenster beantwortet werden.
+# Installiert wird stick-backup über install/optional/stick-backup.sh.
+
+BIN="$HOME/.local/bin/stick-backup"
+
+if [ ! -x "$BIN" ]; then
+    echo "stick-backup ist nicht installiert."
+    echo "Installieren: bash ~/fedora-hyprland-noctalia-dotfiles/install/optional/stick-backup.sh"
+    read -rp "Enter zum Schließen … " _
+    exit 1
+fi
+
+exec "$BIN" run --pause "$@"

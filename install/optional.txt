@@ -7,12 +7,14 @@
 #   copr:<owner>/<projekt> Paket aus einem COPR (Repo wird vorher aktiviert)
 #   flatpak                App-ID von Flathub
 #   script                 führt install/optional/<paket>.sh aus (für Sonderfälle, z.B. Tarballs);
-#                          mit --status und --remove taucht es auch in pkg-remove auf
+#                          mit --status und --remove taucht es auch in pkg-remove auf,
+#                          mit --update (und --status) aktualisiert pkg-update es mit
 #
 # "## Überschrift" gruppiert die folgenden Einträge in der Auswahl.
 #
-# Updates: dnf, copr und flatpak laufen über pkg-update mit.
-# script-Programme müssen sich selbst aktualisieren (oder manuell neu installiert werden).
+# Updates: dnf, copr und flatpak laufen über pkg-update mit, script-Programme nur, wenn ihr
+# Skript --update kennt (z.B. stick-backup). Die anderen aktualisieren sich selbst (Zotero)
+# oder werden manuell neu installiert.
 
 ## Browser
 copr:imput/helium           helium-bin      # Helium (COPR vom Hersteller)
@@ -25,3 +27,7 @@ script                      zotero          # Zotero (offizieller Tarball, aktua
 
 ## Spiele
 copr:g3tchoo/prismlauncher  prismlauncher   # Prism Launcher (COPR, offiziell auf der Website von Prism mit angegeben)
+
+## Datei-Backup
+krusader
+script                      stick-backup    # stick-backup (eigenes Go-Tool: Ordner auf exFAT-Stick spiegeln, /pkg-Menü)

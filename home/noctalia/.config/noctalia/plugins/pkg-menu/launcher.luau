@@ -33,6 +33,12 @@ local ENTRIES = {
     glyph = "cloud-download",
   },
   {
+    id = "stick-backup-run",
+    title = "Backup auf USB-Stick",
+    subtitle = "Ordner auf den Stick spiegeln (stick-backup), am Ende auswerfen",
+    glyph = "device-usb",
+  },
+  {
     id = "lid-awake",
     title = "Zuklappen weiterlaufen", -- Titel, Untertitel und Icon setzt onQuery je nach Zustand
     subtitle = "",

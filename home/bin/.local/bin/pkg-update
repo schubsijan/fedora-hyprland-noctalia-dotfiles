@@ -6,9 +6,11 @@
 #
 # 1. dnf      sudo dnf upgrade --refresh   (Fedora-Repos + aktivierte COPRs)
 # 2. Flatpak  flatpak update + ungenutzte Runtimes entfernen
-# 3. Firmware nur prüfen und anzeigen (fwupdmgr), nicht automatisch einspielen
-# 4. Zusammenfassung + Hinweis, ob ein Neustart nötig ist (dnf needs-restarting)
-# 5. Neue Fedora-Version? → COPRs und Probelauf prüfen, bei Erfolg Upgrade + Neustart anbieten
+# 3. Eigene Programme: install/optional/<name>.sh --update für jedes installierte
+#    script-Programm, dessen Skript --update kennt (z.B. stick-backup)
+# 4. Firmware nur prüfen und anzeigen (fwupdmgr), nicht automatisch einspielen
+# 5. Zusammenfassung + Hinweis, ob ein Neustart nötig ist (dnf needs-restarting)
+# 6. Neue Fedora-Version? → COPRs und Probelauf prüfen, bei Erfolg Upgrade + Neustart anbieten
 
 set -uo pipefail
 
@@ -42,7 +44,25 @@ if command -v flatpak >/dev/null; then
     sudo flatpak uninstall --unused "${YES[@]}" || failed+=("flatpak cleanup")
 fi
 
-# ── 3. Firmware (nur anzeigen) ──────────────────────────────────────────────
+# ── 3. Eigene Programme (install/optional/*.sh --update) ────────────────────
+# Wie pkg-remove: Das Repo liegt drei Ebenen über ~/.local/bin (Symlink auflösen).
+OPTIONAL_DIR="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../../../.." && pwd)/install/optional"
+scripts=()
+for script in "$OPTIONAL_DIR"/*.sh; do
+    # Nur Skripte mit --update; andere (z.B. zotero.sh) aktualisieren sich selbst
+    # oder würden beim Aufruf ohne Option neu installieren.
+    [ -f "$script" ] && grep -q -- '--update' "$script" || continue
+    bash "$script" --status >/dev/null 2>&1 || continue   # nicht installiert
+    scripts+=("$script")
+done
+if [ ${#scripts[@]} -gt 0 ]; then
+    step "Eigene Programme aktualisieren"
+    for script in "${scripts[@]}"; do
+        bash "$script" --update || failed+=("$(basename "$script" .sh)")
+    done
+fi
+
+# ── 4. Firmware (nur anzeigen) ──────────────────────────────────────────────
 if command -v fwupdmgr >/dev/null; then
     step "Firmware: nach Updates suchen"
     fwupdmgr refresh >/dev/null 2>&1
@@ -53,7 +73,7 @@ if command -v fwupdmgr >/dev/null; then
     fi
 fi
 
-# ── 4. Zusammenfassung ──────────────────────────────────────────────────────
+# ── 5. Zusammenfassung ──────────────────────────────────────────────────────
 step "Fertig"
 if [ ${#failed[@]} -eq 0 ]; then
     echo -e "${GREEN}✔ Alles aktualisiert.${RESET}"
@@ -68,7 +88,7 @@ if ! dnf needs-restarting >/dev/null 2>&1; then
     echo -e "${YELLOW}⟳ Neustart empfohlen (Kernel/Kernbibliotheken wurden aktualisiert).${RESET}"
 fi
 
-# ── 5. Neue Fedora-Version ──────────────────────────────────────────────────
+# ── 6. Neue Fedora-Version ──────────────────────────────────────────────────
 # Prüft, ob es eine neuere stabile Fedora-Version gibt, und ob alle COPRs dafür
 # schon Pakete haben. Dann ein Probelauf (distro-sync --assumeno), der nichts ändert.
 # Erst wenn alles passt, wird das Upgrade angeboten (fragt immer, auch mit -y).

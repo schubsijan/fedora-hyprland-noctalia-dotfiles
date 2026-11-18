@@ -118,14 +118,14 @@ weil es die Palette und die Community-Templates herunterlädt.
 | Pfad im Repo     | Ziel / Zweck |
 |------------------|--------------|
 | `home/<programm>/` | stow-Paket pro Programm, spiegelt `$HOME` (z.B. `home/hypr/.config/hypr/`). Wird komplett mit einem `stow`-Aufruf verlinkt, neue Programme = neuer Ordner |
-| `home/bin/`      | eigene Befehle → `~/.local/bin` (`pkg-*`, `greetd-autologin`, `helium-backup`, …) |
+| `home/bin/`      | eigene Befehle → `~/.local/bin` (`pkg-*`, `greetd-autologin`, `helium-backup`, `stick-backup-run`, …) |
 | `home/noctalia/` | Noctalia: Config (`noctalia-full-config.toml`, Noctalia führt alle `*.toml` zusammen), Launcher-Plugin, ZenNotes-Template **und** aktive Settings (`.local/state/noctalia/settings.toml`) |
 | `home/xdg/`      | Standard-Programme (`~/.config/hyprland-mimeapps.list`, hat Vorrang vor `mimeapps.list`) |
 | `system/`        | spiegelt `/`, wird per `sudo install` **kopiert** (dnf, udev-Regel Touchscreen aus, Plymouth-Theme) |
 | `install/`       | alles nur für `install.sh`: `packages.txt`, `optional.txt`, `optional/<name>.sh`, `lib/` |
 | `wallpapers/`    | `~/Pictures/Wallpapers` (Verzeichnis-Symlink: neue Bilder landen automatisch im Repo) |
 
-Übrige Pakete unter `home/`: fastfetch, fish, hypr, kitty, mise, nvim, qt6ct, starship, thunar, zennotes.
+Übrige Pakete unter `home/`: fastfetch, fish, hypr, kitty, mise, nvim, prismlauncher, qt6ct, starship, thunar, zennotes.
 
 Nicht versioniert (bewusst): noctalia-Runtime-State (Clipboard, History,
 `state.toml`), easyeffects, qt/gtk.

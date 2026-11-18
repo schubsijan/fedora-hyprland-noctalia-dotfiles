@@ -31,8 +31,8 @@ local function set_layout(layout)
     end
 
     -- Workspace-Regel setzen: das Layout wird dadurch sofort auf den Workspace angewendet
-    hl.workspace_rule({ workspace = ws.config_name, layout = layout })
-    hl.dsp.exec_cmd(("noctalia msg notification-show 'Layout: %s'"):format(LAYOUT_LABEL[layout] or layout))
+    hl.workspace_rule({ workspace = tostring(ws.id), layout = layout })
+    hl.exec_cmd(("noctalia msg notification-show 'Layout: %s'"):format(LAYOUT_LABEL[layout] or layout))
 end
 
 -- zwischen den verschiednenen col-Breiten umschalten

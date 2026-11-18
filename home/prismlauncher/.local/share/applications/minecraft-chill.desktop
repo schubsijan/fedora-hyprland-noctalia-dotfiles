@@ -1,0 +1,13 @@
+[Desktop Entry]
+# Startet die Prism-Instanz direkt in die Welt "Chill" (Quick Play, MC >= 1.20).
+# Instanz-ID = Ordnername unter ~/.local/share/PrismLauncher/instances/.
+# Voraussetzung: in der Instanz rrls.toml hideOverlays = "RELOADING" (bei "ALL" stürzt
+# Quick Play ab und Minecraft wirft alle Resourcepacks raus).
+Type=Application
+Name=Minecraft: Chill
+Comment=Welt "Chill" direkt über Prism Launcher starten
+Exec=prismlauncher --launch "Mein Client Mods" --world "Chill"
+TryExec=prismlauncher
+Icon=org.prismlauncher.PrismLauncher
+Categories=Game;
+Keywords=minecraft;prism;welt;
