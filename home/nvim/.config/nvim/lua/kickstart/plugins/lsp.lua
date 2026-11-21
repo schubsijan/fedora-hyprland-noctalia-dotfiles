@@ -104,18 +104,13 @@ return {
       vim.opt.signcolumn = 'yes'
     end,
     config = function()
-      local lsp_defaults = require('lspconfig').util.default_config
-
       -- add templ as filetype, so that nvim can attach the lsps
       vim.filetype.add({ extension = { templ = "templ" } })
 
-      -- Add cmp_nvim_lsp capabilities settings to lspconfig
-      -- This should be executed before you configure any language server
-      lsp_defaults.capabilities = vim.tbl_deep_extend(
-        'force',
-        lsp_defaults.capabilities,
-        require('cmp_nvim_lsp').default_capabilities()
-      )
+      -- cmp-Capabilities für alle Server (neue vim.lsp.config-API, nvim 0.11+)
+      vim.lsp.config('*', {
+        capabilities = require('cmp_nvim_lsp').default_capabilities(),
+      })
 
       -- LspAttach is where you enable features that only work
       -- if there is a language server active in the file
@@ -139,8 +134,81 @@ return {
         end,
       })
 
+      -- Server-spezifische Einstellungen. mason-lspconfig v2 kennt keine `handlers` mehr,
+      -- stattdessen ergänzt vim.lsp.config() die Defaults aus nvim-lspconfig (lsp/<name>.lua).
+      vim.lsp.config('lua_ls', {
+        settings = {
+          Lua = {
+            completion = {
+              callSnippet = "Replace",
+            },
+            -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
+            -- diagnostics = { disable = { 'missing-fields' } },
+          },
+        },
+      })
+
+      vim.lsp.config('gopls', {
+        filetypes = { 'go', 'gomod', 'gowork', 'gotmpl', 'templ' },
+        settings = {
+          gopls = {
+            codelenses = {
+              generate = true,   -- show the `go generate` lens.
+              gc_details = true, -- show a code lens toggling the display of gc's choices.
+              test = true,
+              upgrade_dependency = true,
+              tidy = true,
+            },
+            completeUnimported = true,
+            analyses = {
+              unusedparams = true,
+            },
+          },
+        },
+      })
+
+      vim.lsp.config('html', {
+        filetypes = { 'html', 'templ' },
+      })
+
+      -- tailwindcss: Default-Filetypes enthalten bereits html, templ und svelte
+      vim.lsp.config('tailwindcss', {
+        init_options = { userLanguages = { templ = 'html' } },
+        settings = {
+          tailwindCSS = {
+            includeLanguages = {
+              templ = 'html',
+            },
+          },
+        },
+      })
+
+      vim.lsp.config('eslint', {
+        settings = {
+          format = { enable = true },
+          packageManager = 'npm',
+          codeActionOnSave = {
+            mode = 'all',
+          },
+        },
+      })
+
+      -- ts_ls: typescript-svelte-plugin, damit .ts-Dateien Imports aus .svelte verstehen
+      vim.lsp.config('ts_ls', {
+        init_options = {
+          plugins = {
+            {
+              name = 'typescript-svelte-plugin',
+              location = vim.fn.stdpath('data')
+                .. '/mason/packages/svelte-language-server/node_modules/typescript-svelte-plugin',
+              enableForWorkspaceTypeScriptVersions = true,
+            },
+          },
+        },
+      })
+
+      -- Installiert fehlende Server und aktiviert alle installierten per vim.lsp.enable()
       require('mason-lspconfig').setup({
-        automatic_installation = true,
         ensure_installed = {
           'ts_ls',
           'lua_ls',
@@ -151,112 +219,7 @@ return {
           'templ',
           'svelte',
         },
-        handlers = {
-          -- this first function is the "default handler"
-          -- it applies to every language server without a "custom handler"
-          function(server_name)
-            require('lspconfig')[server_name].setup({})
-          end,
-          -- laguageservers with custom handlers
-          lua_ls = function()
-            require('lspconfig').lua_ls.setup({
-              settings = {
-                Lua = {
-                  completion = {
-                    callSnippet = "Replace",
-                  },
-                  -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-                  -- diagnostics = { disable = { 'missing-fields' } },
-                },
-              },
-            })
-          end,
-          gopls = function()
-            require('lspconfig').gopls.setup({
-              filetypes = { "go", "templ" },
-              gopls = {
-                codelenses = {
-                  generate = true,   -- show the `go generate` lens.
-                  gc_details = true, -- show a code lens toggling the display of gc's choices.
-                  test = true,
-                  upgrade_dependency = true,
-                  tidy = true,
-                },
-                completeUnimported = true,
-                analyses = {
-                  unusedparams = true
-                }
-              },
-            })
-          end,
-          templ = function()
-            require('lspconfig').templ.setup({
-              default_config = {
-                --cmd = { "templ", "lsp", "-http=localhost:7475", "-log=/Users/adrian/templ.log", "-goplsLog=/Users/adrian/gopls.log" },
-                cmd = { 'templ', 'lsp' },
-                filetypes = { 'templ' },
-                root_dir = require('lspconfig').util.root_pattern('go.mod', '.git'),
-                settings = {},
-              },
-            })
-          end,
-          html = function()
-            require('lspconfig').html.setup({
-              filetypes = { "html", "templ" },
-            })
-          end,
-          tailwindcss = function()
-            require('lspconfig').tailwindcss.setup({
-              filetypes = { "html", "templ" },
-              init_options = { userLanguages = { templ = "html" } },
-              settings = {
-                tailwindCSS = {
-                  includeLanguages = {
-                    templ = "html",
-                  },
-                },
-              },
-            })
-          end,
-          eslint = function()
-            require('lspconfig').eslint.setup({
-              enable = true,
-              format = { enable = true }, -- this will enable formatting
-              packageManager = 'npm',
-              autoFixOnSave = true,
-              codeActionOnSave = {
-                mode = 'all',
-                rules = { '!debugger', '!no-only-tests/*' },
-              },
-              lintTask = {
-                enable = true,
-              },
-            })
-          end,
-          tsserver = function()
-            require('lspconfig').ts_ls.setup({
-              settings = {
-                typescript = {
-                  tsserver = {
-                    globalPlugins = {
-                      {
-                        name = 'typescript-svelte-plugin',
-                        location = vim.fn.stdpath('data')
-                          .. '/mason/packages/svelte-language-server/node_modules/typescript-svelte-plugin',
-                        enableForWorkspaceTypeScriptVersions = true,
-                      },
-                    },
-                  },
-                },
-              },
-            })
-          end,
-          svelte = function()
-            require('lspconfig').svelte.setup({
-              root_dir = require('lspconfig').util.root_pattern('svelte.config.js', 'package.json', '.git'),
-            })
-          end,
-        }
+        automatic_enable = true,
       })
     end
   }

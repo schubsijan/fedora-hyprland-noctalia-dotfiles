@@ -56,4 +56,7 @@
 
 - [x] security des Systems mal KI fragen, ob das so gut ist?
 
-- [ ] einen backup-Reiter in super+alt+space menu -> da dann bakup-alle, backup-helium, -minecraft, Daten, Zotero als optionen
+- [x] einen backup-Reiter in super+alt+space menu -> da dann bakup-alle, backup-helium, -minecraft, Daten, Zotero als optionen
+
+- [x] install webapps like omarchy
+  - `webapp-install` / `webapp-remove` (Einträge im SUPER+ALT+SPACE-Menü), Helium `--app`

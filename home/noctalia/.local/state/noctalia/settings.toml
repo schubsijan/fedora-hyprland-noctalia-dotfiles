@@ -17,9 +17,10 @@ radius_bottom_left = 5
 radius_bottom_right = 5
 radius_top_left = 0
 radius_top_right = 0
+scale = 0.90000000596046448
 shadow = false
 start = [ "workspaces" ]
-thickness = 20
+thickness = 15
 
 [bluetooth]
 connect_when_enabled = true
@@ -95,8 +96,8 @@ widget_order = [ "lockscreen-login-box@eDP-1", "lockscreen-login-box@Virtual-1",
     [lockscreen_widgets.widget."lockscreen-login-box@eDP-1"]
     box_height = 128.0
     box_width = 810.0
-    cx = 800.00006103515625
-    cy = 748.33331298828125
+    cx = 800.0
+    cy = 770.0
     output = "eDP-1"
     placement_height = 900.0
     placement_width = 1600.0
@@ -172,8 +173,8 @@ lang = "de"
     layout = "simple"
 
 [theme]
-builtin = "Kanagawa"
-community_palette = "Everforest"
+builtin = "Tokyo-Night"
+community_palette = "Everforest Alt"
 mode = "dark"
 source = "community"
 wallpaper_scheme = "vibrant"
@@ -193,14 +194,17 @@ wallpaper_scheme = "vibrant"
         "fzf"
     ]
 
-[wallpaper.default]
-path = "/home/schubsi/Pictures/Wallpapers/fog_forest_bg_2.png"
+[wallpaper]
+transition = [ "disc" ]
 
-[wallpaper.last]
-path = "/home/schubsi/Pictures/Wallpapers/fog_forest_bg_2.png"
+    [wallpaper.default]
+    path = "/home/schubsi/Pictures/Wallpapers/ign_astronaut.png"
 
-[wallpaper.monitors.eDP-1]
-path = "/home/schubsi/Pictures/Wallpapers/fog_forest_bg_2.png"
+    [wallpaper.last]
+    path = "/home/schubsi/Pictures/Wallpapers/ign_astronaut.png"
+
+    [wallpaper.monitors.eDP-1]
+    path = "/home/schubsi/Pictures/Wallpapers/ign_astronaut.png"
 
 [weather]
 enabled = false
@@ -224,6 +228,7 @@ hide_when_no_media = true
 mute_color = "secondary"
 
 [widget.workspaces]
-active_pill_size = 0.25
+active_pill_size = 1.0
 occupied_color = "on_primary"
 pill_scale = 0.90000000000000002
+scale = 0.94999999999999996

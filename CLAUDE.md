@@ -70,6 +70,9 @@ Hyprland nutzt die **neue Lua-Config** (`hyprland.lua`), keine `hyprland.conf`-S
   (`system-preset/10-dotfiles.preset` + `_system_hook_sshd`, läuft bei jedem Aufruf), LLMNR aus
   (`resolved.conf.d/10-no-llmnr.conf`). Git/GitHub läuft über HTTPS (`gh`), braucht kein sshd.
   Secure Boot bewusst aus (Limine/Omarchy-Dualboot).
+- `webapp-install` / `webapp-remove` (`home/bin/`, Einträge im pkg-menu): legen `~/.local/share/applications/<Name>.desktop`
+  mit `helium --app=<url>` + Icon in `~/.local/share/icons/hicolor/256x256/apps/` an (lokal, nicht im Repo).
+  Erkennungsmerkmal `X-Dotfiles-Webapp=true`; `StartupWMClass` = Chromium-Klasse `chrome-<host>_<pfad>-Default`.
 - `boot-fedora-first` (`home/bin/`): nur für diesen Rechner (feste UUID der Limine-Partition).
 - Optionale Programme: `install/optional.txt` (Quellen `dnf`, `copr:<owner>/<projekt>`, `flatpak`, `script`).
   install.sh fragt sie per fzf ab (`install/lib/optional.sh`) und installiert sie am Ende. `script <name>` führt

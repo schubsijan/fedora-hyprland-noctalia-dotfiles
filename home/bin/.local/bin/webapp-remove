@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# webapp-remove – mit webapp-install angelegte Webapps per fzf auswählen und entfernen
+#
+#   webapp-remove [name …]
+#
+# Entfernt .desktop-Datei und Icon. Erkennt nur Einträge mit "X-Dotfiles-Webapp=true".
+# Im Menü: SUPER+ALT+SPACE → "Webapp entfernen" (pkg-menu-Plugin).
+
+set -uo pipefail
+
+ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
+DESKTOP_DIR="$HOME/.local/share/applications"
+
+finish() { [ -n "${PKG_WAIT:-}" ] && read -rp $'\nEnter zum Schließen … ' _; exit "${1:-0}"; }
+notify() { noctalia msg notification-show "$1" >/dev/null 2>&1 || true; echo "$1"; }
+
+# Alle Webapps: Name<TAB>URL
+list_webapps() {
+	local f
+	for f in "$DESKTOP_DIR"/*.desktop; do
+		grep -q '^X-Dotfiles-Webapp=true' "$f" 2>/dev/null || continue
+		printf '%s\t%s\n' "$(basename "${f%.desktop}")" "$(sed -n 's/^Comment=Webapp: //p' "$f" | head -1)"
+	done | sort -f
+}
+
+if (($# > 0)); then
+	names=("$@")
+else
+	command -v fzf >/dev/null || { echo "fzf fehlt: sudo dnf install fzf" >&2; finish 1; }
+	apps=$(list_webapps)
+	[ -n "$apps" ] || { echo "Keine Webapps installiert."; finish 0; }
+	selection=$(
+		sed $'s/\t\\(.*\\)/\t\e[90m\\1\e[0m/' <<<"$apps" |
+			fzf --ansi --multi --delimiter $'\t' --nth 1 \
+				--prompt "webapp entfernen> " \
+				--header "Enter: entfernen · Tab: mehrere wählen · Esc: abbrechen" \
+				--color 'pointer:red,marker:red' |
+			cut -f1
+	)
+	[ -n "$selection" ] || finish 0
+	mapfile -t names <<<"$selection"
+fi
+
+rc=0
+for name in "${names[@]}"; do
+	file="$DESKTOP_DIR/$name.desktop"
+	if ! grep -q '^X-Dotfiles-Webapp=true' "$file" 2>/dev/null; then
+		echo "Keine Webapp: $name" >&2
+		rc=1
+		continue
+	fi
+	# Nur das von webapp-install abgelegte Icon löschen (Dateiname = Name in Kleinbuchstaben),
+	# nicht ein gleichnamiges Theme-Icon
+	icon=$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | sed 's/[^[:alnum:]]\+/-/g; s/^-//; s/-$//')
+	grep -qx "Icon=$icon" "$file" && rm -f "$ICON_DIR/$icon".*
+	rm -f "$file"
+	notify "Webapp '$name' entfernt"
+done
+
+update-desktop-database "$DESKTOP_DIR" &>/dev/null || true
+gtk-update-icon-cache -q "$HOME/.local/share/icons/hicolor" &>/dev/null || true
+finish "$rc"

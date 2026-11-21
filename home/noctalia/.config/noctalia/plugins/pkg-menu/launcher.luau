@@ -33,6 +33,18 @@ local ENTRIES = {
     glyph = "cloud-download",
   },
   {
+    id = "webapp-install",
+    title = "Webapp installieren",
+    subtitle = "Webseite als eigene App (Helium --app) mit Icon im Launcher anlegen",
+    glyph = "world-plus",
+  },
+  {
+    id = "webapp-remove",
+    title = "Webapp entfernen",
+    subtitle = "Angelegte Webapps durchsuchen und entfernen",
+    glyph = "world-minus",
+  },
+  {
     id = "stick-backup-run",
     title = "Backup auf USB-Stick",
     subtitle = "Ordner auf den Stick spiegeln (stick-backup), am Ende auswerfen",

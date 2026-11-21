@@ -1,6 +1,8 @@
 return {
   {
     'nvim-treesitter/nvim-treesitter',
+    branch = 'main',
+    lazy = false,
     dependencies = {
       'vrischmann/tree-sitter-templ',
     },
@@ -12,22 +14,23 @@ return {
         },
       })
 
-      -- Neuer nvim-treesitter Standard ohne .configs
-      require('nvim-treesitter').setup({
-        ensure_installed = { 'svelte', 'typescript', 'javascript', 'html', 'css', 'templ' },
-        auto_install = true,
-        highlight = {
-          enable = true,
-        },
-        indent = {
-          enable = true,
-        },
+      -- main-Branch: setup() kennt kein ensure_installed/highlight mehr,
+      -- Parser werden explizit installiert (async, bereits installierte werden übersprungen).
+      -- svelte braucht html/css/javascript/typescript für Vererbung + Injections.
+      require('nvim-treesitter').install({
+        'svelte', 'html', 'css', 'javascript', 'typescript', 'tsx',
+        'templ', 'go', 'lua', 'luadoc', 'vim', 'vimdoc', 'query',
+        'markdown', 'markdown_inline', 'bash', 'json', 'yaml', 'toml',
       })
 
+      -- Highlighting + Indent für jede Sprache, für die ein Parser vorhanden ist
       vim.api.nvim_create_autocmd('FileType', {
-        pattern = { 'svelte', 'templ' },
         callback = function(args)
-          vim.treesitter.start(args.buf)
+          local lang = vim.treesitter.language.get_lang(args.match)
+          if not lang or not pcall(vim.treesitter.start, args.buf, lang) then
+            return
+          end
+          vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
         end,
       })
     end,

@@ -1,5 +1,5 @@
 # Eigenes Plugin: Paket-Menü im Noctalia-Launcher (Präfix /pkg).
-# Startet die Befehle aus bin/ (pkg-install, pkg-remove, pkg-copr, stick-backup-run) in kitty.
+# Startet die Befehle aus bin/ (pkg-install, pkg-remove, pkg-copr, webapp-install/-remove, stick-backup-run) in kitty.
 # Enthält außerdem das Theme-Untermenü (/pkg theme).
 # Shortcuts: SUPER+ALT+SPACE, Themes direkt: SUPER+ALT+T (siehe hypr/keybind.lua).
 
