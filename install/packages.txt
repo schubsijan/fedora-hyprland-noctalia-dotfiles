@@ -22,6 +22,11 @@ gnome-keyring-pam
 neovim
 npm
 
+# zoxide: cd mit Sprung in oft besuchte Verzeichnisse (home/fish/config.fish)
+zoxide
+# eza: ls-Ersatz (Alias in home/fish/config.fish)
+eza
+
 # bat: kommt nicht über minimaDots; das Noctalia-Template "bat" setzt das Theme in ~/.config/bat/config
 bat
 
