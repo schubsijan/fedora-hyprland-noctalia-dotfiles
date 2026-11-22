@@ -364,7 +364,6 @@ enabled = [ "kenn/keybind-cheatsheet" ]
     name = "community"
 
 [shell]
-app_icon_colorize = false
 avatar_path = ""
 button_borders = true
 card_borders = true
